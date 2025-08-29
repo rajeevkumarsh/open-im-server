@@ -91,12 +91,12 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop_build'
+    if: github.ref == 'refs/heads/develop_im'
 
     steps:
 
     - name: Deploy via 1Panel API
-      if: github.ref == 'refs/heads/develop_build'
+      if: github.ref == 'refs/heads/develop_im'
       run: |
         # 设置变量
         PANEL_URL="http://124.156.102.70:18238"
