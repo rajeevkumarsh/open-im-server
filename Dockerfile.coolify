@@ -80,8 +80,7 @@ RUN mkdir -p \
     $SERVER_DIR/data \
     && chown -R openim:openim $SERVER_DIR
 
-# 安装运行时 Go 依赖
-RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.1
+# 注意：运行阶段不需要 Go 环境，所有依赖已在构建阶段处理
 
 # 切换到非 root 用户
 USER openim
