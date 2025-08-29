@@ -104,9 +104,9 @@ jobs:
           git fetch origin
           git reset --hard origin/${{ github.ref_name }}
           
-          # 运行部署脚本
+          # 运行部署脚本（使用 sudo）
           chmod +x deploy.sh
-          ./deploy.sh
+          sudo ./deploy.sh
           
           echo "部署完成: ${{ github.sha }}"
 
