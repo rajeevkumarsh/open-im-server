@@ -111,70 +111,96 @@ check_env_config() {
     return 0
 }
 
-# 测试外部服务连接
+# 测试外部服务连接（使用 Docker 网络）
 test_external_services() {
-    log_info "测试外部服务连接..."
+    log_info "测试外部服务连接（Docker 网络环境）..."
     
     source .env
     
+    # 检查 Docker 和 1panel-network 是否可用
+    if ! command -v docker &> /dev/null; then
+        log_warning "Docker 未安装，跳过网络连接测试"
+        log_warning "请在 Coolify 部署后验证服务连接"
+        return 0
+    fi
+    
+    if ! docker network ls | grep -q "1panel-network"; then
+        log_warning "1panel-network 网络不存在，跳过网络连接测试"
+        log_warning "请确保在 Coolify 环境中可以访问 1panel-network"
+        return 0
+    fi
+    
+    local test_container="openim-connectivity-test-$$"
     local failed_services=()
     
-    # 测试 MongoDB 连接
-    log_info "测试 MongoDB 连接..."
-    if ! timeout 10 bash -c "</dev/tcp/${MONGO_HOST}/${MONGO_PORT}" 2>/dev/null; then
-        log_warning "无法连接到 MongoDB (${MONGO_HOST}:${MONGO_PORT})"
-        failed_services+=("MongoDB")
-    else
-        log_success "MongoDB 连接正常"
+    log_info "启动测试容器..."
+    if ! docker run -d --name "$test_container" --network 1panel-network alpine:latest sleep 120 >/dev/null 2>&1; then
+        log_warning "无法启动测试容器，跳过网络连接测试"
+        log_warning "可能的原因："
+        log_warning "  - 无权限访问 1panel-network"
+        log_warning "  - Docker 守护进程问题"
+        log_warning "请在 Coolify 环境中验证网络连接"
+        return 0
     fi
     
-    # 测试 Redis 连接
-    log_info "测试 Redis 连接..."
-    if ! timeout 10 bash -c "</dev/tcp/${REDIS_HOST}/${REDIS_PORT}" 2>/dev/null; then
-        log_warning "无法连接到 Redis (${REDIS_HOST}:${REDIS_PORT})"
-        failed_services+=("Redis")
-    else
-        log_success "Redis 连接正常"
-    fi
+    # 安装网络测试工具
+    log_info "安装网络测试工具..."
+    docker exec "$test_container" apk add --no-cache netcat-openbsd curl >/dev/null 2>&1
     
-    # 测试 Kafka 连接
-    log_info "测试 Kafka 连接..."
-    if ! timeout 10 bash -c "</dev/tcp/${KAFKA_HOST}/${KAFKA_PORT}" 2>/dev/null; then
-        log_warning "无法连接到 Kafka (${KAFKA_HOST}:${KAFKA_PORT})"
-        failed_services+=("Kafka")
-    else
-        log_success "Kafka 连接正常"
-    fi
+    # 定义服务列表
+    local services=(
+        "MongoDB:${MONGO_HOST}:${MONGO_PORT}"
+        "Redis:${REDIS_HOST}:${REDIS_PORT}"
+        "Kafka:${KAFKA_HOST}:${KAFKA_PORT}"
+        "etcd:${ETCD_HOST}:${ETCD_PORT}"
+        "MinIO:${MINIO_HOST}:${MINIO_PORT}"
+    )
     
-    # 测试 etcd 连接
-    log_info "测试 etcd 连接..."
-    if ! timeout 10 bash -c "</dev/tcp/${ETCD_HOST}/${ETCD_PORT}" 2>/dev/null; then
-        log_warning "无法连接到 etcd (${ETCD_HOST}:${ETCD_PORT})"
-        failed_services+=("etcd")
-    else
-        log_success "etcd 连接正常"
-    fi
+    # 测试每个服务
+    for service_info in "${services[@]}"; do
+        local service_name="${service_info%%:*}"
+        local remaining="${service_info#*:}"
+        local host="${remaining%:*}"
+        local port="${remaining##*:}"
+        
+        log_info "测试 $service_name 连接 ($host:$port)..."
+        
+        if docker exec "$test_container" nc -z -w5 "$host" "$port" 2>/dev/null; then
+            log_success "$service_name 连接正常"
+        else
+            log_warning "无法连接到 $service_name ($host:$port)"
+            failed_services+=("$service_name")
+        fi
+    done
     
-    # 测试 MinIO 连接
-    log_info "测试 MinIO 连接..."
-    if ! timeout 10 bash -c "</dev/tcp/${MINIO_HOST}/${MINIO_PORT}" 2>/dev/null; then
-        log_warning "无法连接到 MinIO (${MINIO_HOST}:${MINIO_PORT})"
-        failed_services+=("MinIO")
-    else
-        log_success "MinIO 连接正常"
-    fi
+    # 清理测试容器
+    log_info "清理测试容器..."
+    docker rm -f "$test_container" >/dev/null 2>&1
     
+    # 结果处理
     if [ ${#failed_services[@]} -ne 0 ]; then
         log_warning "以下服务连接失败: ${failed_services[*]}"
-        log_warning "请检查服务器配置和网络连接"
+        echo
+        log_warning "可能的原因："
+        log_warning "  - 服务容器未运行或未连接到 1panel-network"
+        log_warning "  - 1Panel 服务配置问题"
+        log_warning "  - 防火墙或网络策略限制"
+        echo
+        log_info "建议操作："
+        log_info "  1. 检查 1Panel 中的服务状态"
+        log_info "  2. 验证服务容器是否在 1panel-network 中"
+        log_info "  3. 运行 ./scripts/check-1panel-network.sh 进行详细检查"
+        echo
         log_warning "部署可能会失败，是否继续？(y/N)"
         read -r response
         if [[ ! "$response" =~ ^[Yy]$ ]]; then
             log_info "部署已取消"
+            log_info "请先修复服务连接问题，然后重新运行此脚本"
             exit 1
         fi
     else
         log_success "所有外部服务连接正常"
+        log_success "OpenIM 应该能够正常连接到依赖服务"
     fi
 }
 
@@ -204,11 +230,107 @@ show_deployment_info() {
     log_info "  - .coolify.yml (Coolify 应用配置)"
     log_info "  - .env (环境变量配置)"
     echo
+    log_info "网络配置:"
+    log_info "  - 1panel-network (连接 1Panel 依赖服务)"
+    log_info "  - coolify (Coolify 平台管理网络)"
+    echo
+    log_info "依赖服务:"
+    source .env 2>/dev/null || true
+    log_info "  - MongoDB: ${MONGO_HOST:-未配置}:${MONGO_PORT:-27017}"
+    log_info "  - Redis: ${REDIS_HOST:-未配置}:${REDIS_PORT:-6379}"
+    log_info "  - Kafka: ${KAFKA_HOST:-未配置}:${KAFKA_PORT:-9092}"
+    log_info "  - etcd: ${ETCD_HOST:-未配置}:${ETCD_PORT:-2379}"
+    log_info "  - MinIO: ${MINIO_HOST:-未配置}:${MINIO_PORT:-9000}"
+    echo
     log_success "配置文件已准备就绪，可以在 Coolify 中导入项目进行部署"
+    echo
+    log_info "下一步操作:"
+    log_info "  1. 推送代码到 Git 仓库"
+    log_info "  2. 在 Coolify 中导入项目"
+    log_info "  3. 配置环境变量和网络"
+    log_info "  4. 启动部署"
+}
+
+# 显示使用帮助
+show_usage() {
+    echo "OpenIM Coolify 部署脚本"
+    echo
+    echo "使用方法: $0 [选项]"
+    echo
+    echo "选项:"
+    echo "  -h, --help              显示此帮助信息"
+    echo "  -s, --skip-network      跳过网络连接测试"
+    echo "  -n, --no-build         跳过 Docker 镜像构建"
+    echo "  -t, --test-only        仅执行网络连接测试"
+    echo
+    echo "环境变量:"
+    echo "  BUILD_IMAGE=false       跳过镜像构建（默认: true）"
+    echo "  SKIP_NETWORK_TEST=true  跳过网络测试（默认: false）"
+    echo
+    echo "示例:"
+    echo "  $0                      完整的部署准备过程"
+    echo "  $0 -s                   跳过网络测试"
+    echo "  $0 -t                   仅测试网络连接"
+    echo "  $0 -n -s                跳过构建和网络测试"
 }
 
 # 主函数
 main() {
+    local skip_network=false
+    local no_build=false
+    local test_only=false
+    
+    # 解析命令行参数
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -s|--skip-network)
+                skip_network=true
+                shift
+                ;;
+            -n|--no-build)
+                no_build=true
+                shift
+                ;;
+            -t|--test-only)
+                test_only=true
+                shift
+                ;;
+            *)
+                log_error "未知选项: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # 环境变量覆盖
+    if [ "${SKIP_NETWORK_TEST:-false}" = "true" ]; then
+        skip_network=true
+    fi
+    
+    if [ "${BUILD_IMAGE:-true}" = "false" ]; then
+        no_build=true
+    fi
+    
+    if [ "$test_only" = "true" ]; then
+        log_info "仅执行网络连接测试..."
+        echo
+        
+        # 检查环境配置
+        if ! check_env_config; then
+            log_error "环境配置检查失败，无法执行网络测试"
+            exit 1
+        fi
+        
+        # 测试外部服务
+        test_external_services
+        exit $?
+    fi
+    
     log_info "开始 OpenIM Coolify 部署准备..."
     echo
     
@@ -221,12 +343,19 @@ main() {
         exit 1
     fi
     
-    # 测试外部服务
-    test_external_services
+    # 测试外部服务（可选）
+    if [ "$skip_network" = "false" ]; then
+        test_external_services
+    else
+        log_warning "跳过网络连接测试"
+        log_warning "请确保在 Coolify 环境中服务连接正常"
+    fi
     
     # 构建镜像（可选）
-    if [ "${BUILD_IMAGE:-true}" = "true" ]; then
+    if [ "$no_build" = "false" ]; then
         build_image
+    else
+        log_warning "跳过 Docker 镜像构建"
     fi
     
     # 显示部署信息
