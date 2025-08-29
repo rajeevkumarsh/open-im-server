@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # OpenIM Server 容器替换部署脚本
-# Coolify 已完成镜像构建，此脚本负责替换运行中的 openim-server 容器
+# 从 GitHub Container Registry 拉取 GitHub Actions 构建的镜像
 
 set -e
 
@@ -13,14 +13,20 @@ echo "提交: $(git rev-parse --short HEAD)"
 # 配置参数
 CONTAINER_NAME="${CONTAINER_NAME:-openim-server}"
 COMMIT_HASH=$(git rev-parse --short HEAD)
-# Coolify 构建的镜像通常使用应用名称作为标签
-COOLIFY_IMAGE_TAG="${COOLIFY_IMAGE_TAG:-rajeevkumarsh/open-im-server:main-ok000cg0koowck4k8ock044g}"
+BRANCH_NAME=$(git branch --show-current)
+# GitHub Container Registry 镜像
+GITHUB_IMAGE="${GITHUB_IMAGE:-ghcr.io/rajeevkumarsh/open-im-server:${BRANCH_NAME}-${COMMIT_HASH}}"
 
 echo "容器名称: $CONTAINER_NAME"
 echo "提交哈希: $COMMIT_HASH" 
-echo "Coolify 镜像: $COOLIFY_IMAGE_TAG"
+echo "分支名称: $BRANCH_NAME"
+echo "GitHub 镜像: $GITHUB_IMAGE"
 
-echo "✅ 跳过镜像构建（Coolify 已完成）"
+# 1. 从 GitHub Container Registry 拉取最新镜像
+echo "=== 拉取最新镜像 ==="
+docker pull "$GITHUB_IMAGE"
+
+echo "✅ 镜像拉取完成"
 
 # 4. 获取当前容器的运行参数
 echo "=== 获取容器运行参数 ==="
@@ -64,8 +70,8 @@ if docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
     # 添加基本配置
     RUN_CMD="$RUN_CMD --init --restart=always"
     
-    # 添加 Coolify 构建的镜像
-    RUN_CMD="$RUN_CMD $COOLIFY_IMAGE_TAG"
+    # 添加 GitHub Actions 构建的镜像
+    RUN_CMD="$RUN_CMD $GITHUB_IMAGE"
     
     echo "执行命令: $RUN_CMD"
     eval $RUN_CMD
@@ -74,14 +80,14 @@ else
     echo "⚠️  未发现运行中的 $CONTAINER_NAME 容器"
     echo "启动新容器（使用默认配置）..."
     
-    # 启动新容器（使用 Coolify 构建的镜像）
+    # 启动新容器（使用 GitHub Actions 构建的镜像）
     docker run -d \
         --name "$CONTAINER_NAME" \
         --init \
         --restart=always \
         -p 10001:10001 \
         -p 10002:10002 \
-        "$COOLIFY_IMAGE_TAG"
+        "$GITHUB_IMAGE"
 fi
 
 # 7. 等待容器启动
@@ -113,7 +119,7 @@ done
 echo "=== 部署成功 ==="
 echo "✅ OpenIM Server 容器替换完成"
 echo "提交哈希: $COMMIT_HASH"
-echo "运行镜像: $COOLIFY_IMAGE_TAG"
+echo "运行镜像: $GITHUB_IMAGE"
 echo "API 地址: http://localhost:10002"
 
 # 显示容器状态
