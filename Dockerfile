@@ -50,7 +50,12 @@ RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.11
 RUN echo '#!/bin/bash\n\
 cd /openim-server\n\
 \n\
+# Wait for dependencies to be ready\n\
+echo "Waiting for dependencies..."\n\
+sleep 10\n\
+\n\
 # Start OpenIM services in background\n\
+echo "Starting OpenIM services..."\n\
 nohup ./_output/bin/openim-api --config /openim/config > /openim/logs/openim-api.log 2>&1 &\n\
 nohup ./_output/bin/openim-rpc-user --config /openim/config > /openim/logs/openim-rpc-user.log 2>&1 &\n\
 nohup ./_output/bin/openim-rpc-friend --config /openim/config > /openim/logs/openim-rpc-friend.log 2>&1 &\n\
@@ -64,6 +69,7 @@ nohup ./_output/bin/openim-msgtransfer --config /openim/config > /openim/logs/op
 nohup ./_output/bin/openim-msggateway --config /openim/config > /openim/logs/openim-msggateway.log 2>&1 &\n\
 nohup ./_output/bin/openim-crontask --config /openim/config > /openim/logs/openim-crontask.log 2>&1 &\n\
 \n\
+echo "All services started. Keeping container running..."\n\
 # Keep container running\n\
 tail -f /dev/null\n\
 ' > /usr/local/bin/start-openim.sh && chmod +x /usr/local/bin/start-openim.sh
