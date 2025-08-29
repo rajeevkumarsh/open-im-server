@@ -50,6 +50,32 @@ RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.11
 RUN echo '#!/bin/bash\n\
 cd /openim-server\n\
 \n\
+# Discord webhook URL (if available)\n\
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"\n\
+\n\
+# Get current time and image info\n\
+CURRENT_TIME=$(date)\n\
+HOSTNAME=$(hostname)\n\
+\n\
+# Send startup notification\n\
+send_notification() {\n\
+    local title="$1"\n\
+    local description="$2"\n\
+    local color="$3"\n\
+    \n\
+    curl -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d "{\n\
+        \"embeds\": [{\n\
+            \"title\": \"$title\",\n\
+            \"description\": \"$description\",\n\
+            \"color\": $color,\n\
+            \"fields\": [\n\
+                {\"name\": \"容器\", \"value\": \"$HOSTNAME\", \"inline\": true},\n\
+                {\"name\": \"启动时间\", \"value\": \"$CURRENT_TIME\", \"inline\": true}\n\
+            ]\n\
+        }]\n\
+    }" 2>/dev/null || echo "Discord notification failed"\n\
+}\n\
+\n\
 # Wait for dependencies to be ready\n\
 echo "Waiting for dependencies..."\n\
 sleep 10\n\
@@ -69,7 +95,19 @@ nohup ./_output/bin/openim-msgtransfer --config /openim/config > /openim/logs/op
 nohup ./_output/bin/openim-msggateway --config /openim/config > /openim/logs/openim-msggateway.log 2>&1 &\n\
 nohup ./_output/bin/openim-crontask --config /openim/config > /openim/logs/openim-crontask.log 2>&1 &\n\
 \n\
-echo "All services started. Keeping container running..."\n\
+echo "All services started. Waiting for service initialization..."\n\
+sleep 15\n\
+\n\
+# Test if API is responding\n\
+if curl -X POST http://localhost:10002/msg/get_server_time >/dev/null 2>&1; then\n\
+    echo "✅ OpenIM Server started successfully"\n\
+    send_notification "✅ OpenIM Server - 服务启动成功" "所有服务组件已启动并正常响应" "3066993"\n\
+else\n\
+    echo "⚠️ OpenIM Server may have issues"\n\
+    send_notification "⚠️ OpenIM Server - 服务启动异常" "服务已启动但API响应异常，请检查日志" "16776960"\n\
+fi\n\
+\n\
+echo "Container is ready. Keeping running..."\n\
 # Keep container running\n\
 tail -f /dev/null\n\
 ' > /usr/local/bin/start-openim.sh && chmod +x /usr/local/bin/start-openim.sh
