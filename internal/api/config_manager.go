@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/openimsdk/open-im-server/v3/pkg/apistruct"
 	"github.com/openimsdk/open-im-server/v3/pkg/apistruct"
 	"github.com/openimsdk/open-im-server/v3/pkg/authverify"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/config"
@@ -50,6 +51,19 @@ func (cm *ConfigManager) CheckAdmin(c *gin.Context) {
 	}
 }
 
+// GetConfig 获取配置
+// @Summary 获取指定配置
+// @Description 根据配置名称获取配置内容（需要管理员权限）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.GetConfigReq true "配置名称"
+// @Success 200 {object} apistruct.ApiResponse{data=string} "成功响应，返回配置JSON字符串"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/get_config [post]
 func (cm *ConfigManager) GetConfig(c *gin.Context) {
 	var req apistruct.GetConfigReq
 	if err := c.BindJSON(&req); err != nil {
@@ -69,6 +83,17 @@ func (cm *ConfigManager) GetConfig(c *gin.Context) {
 	apiresp.GinSuccess(c, string(b))
 }
 
+// GetConfigList 获取配置列表
+// @Summary 获取配置列表
+// @Description 获取所有可用的配置名称列表、环境信息和版本信息（需要管理员权限）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Success 200 {object} apistruct.ApiResponse{data=apistruct.GetConfigListResp} "成功响应"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/get_config_list [post]
 func (cm *ConfigManager) GetConfigList(c *gin.Context) {
 	var resp apistruct.GetConfigListResp
 	resp.ConfigNames = cm.config.GetConfigNames()
@@ -78,6 +103,19 @@ func (cm *ConfigManager) GetConfigList(c *gin.Context) {
 	apiresp.GinSuccess(c, resp)
 }
 
+// SetConfig 设置单个配置
+// @Summary 设置单个配置
+// @Description 修改指定配置的内容（需要管理员权限，仅ETCD模式支持）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.SetConfigReq true "配置信息"
+// @Success 200 {object} apistruct.ApiResponse "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误或非ETCD模式"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/set_config [post]
 func (cm *ConfigManager) SetConfig(c *gin.Context) {
 	if cm.config.Discovery.Enable != config.ETCD {
 		apiresp.GinError(c, errs.New("only etcd support set config").Wrap())
@@ -270,6 +308,17 @@ func compareAndSave[T any](c *gin.Context, old any, req *apistruct.SetConfigReq,
 	return nil
 }
 
+// ResetConfig 重置配置
+// @Summary 重置配置
+// @Description 重置所有配置为初始值（需要管理员权限，异步执行）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Success 200 {object} apistruct.ApiResponse "成功响应（异步执行）"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/reset_config [post]
 func (cm *ConfigManager) ResetConfig(c *gin.Context) {
 	go func() {
 		if err := cm.resetConfig(c, true); err != nil {
@@ -341,6 +390,17 @@ func (cm *ConfigManager) resetConfig(c *gin.Context, checkChange bool, ops ...cl
 	return nil
 }
 
+// Restart 重启服务
+// @Summary 重启服务
+// @Description 通过ETCD通知所有服务实例重启（需要管理员权限，异步执行）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Success 200 {object} apistruct.ApiResponse "成功响应（异步执行）"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /restart [post]
 func (cm *ConfigManager) Restart(c *gin.Context) {
 	go cm.restart(c)
 	apiresp.GinSuccess(c, nil)
@@ -355,6 +415,19 @@ func (cm *ConfigManager) restart(c *gin.Context) {
 	}
 }
 
+// SetEnableConfigManager 设置配置管理器状态
+// @Summary 设置配置管理器状态
+// @Description 启用或禁用配置管理器（需要管理员权限，仅ETCD模式支持）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.SetEnableConfigManagerReq true "启用状态"
+// @Success 200 {object} apistruct.ApiResponse "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误或非ETCD模式"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/set_enable_config_manager [post]
 func (cm *ConfigManager) SetEnableConfigManager(c *gin.Context) {
 	if cm.config.Discovery.Enable != config.ETCD {
 		apiresp.GinError(c, errs.New("only etcd support config manager").Wrap())
@@ -395,6 +468,18 @@ func (cm *ConfigManager) SetEnableConfigManager(c *gin.Context) {
 	apiresp.GinSuccess(c, nil)
 }
 
+// GetEnableConfigManager 获取配置管理器状态
+// @Summary 获取配置管理器状态
+// @Description 获取配置管理器的启用状态（需要管理员权限）
+// @Tags 配置管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Success 200 {object} apistruct.ApiResponse{data=apistruct.GetEnableConfigManagerResp} "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "获取状态失败"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足"
+// @Router /config/get_enable_config_manager [post]
 func (cm *ConfigManager) GetEnableConfigManager(c *gin.Context) {
 	resp, err := cm.client.Get(c, etcd.BuildKey(etcd.EnableConfigCenterKey))
 	if err != nil {

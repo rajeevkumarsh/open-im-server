@@ -1,0 +1,877 @@
+basePath: /
+definitions:
+  apistruct.ApiResponse:
+    properties:
+      data: {}
+      errCode:
+        example: 0
+        type: integer
+      errDlt:
+        example: ""
+        type: string
+      errMsg:
+        example: success
+        type: string
+    type: object
+  apistruct.ForceLogoutReq:
+    properties:
+      platformID:
+        example: 1
+        maximum: 12
+        minimum: 1
+        type: integer
+      userID:
+        example: user123
+        type: string
+    required:
+    - platformID
+    - userID
+    type: object
+  apistruct.GetAdminTokenReq:
+    properties:
+      adminID:
+        example: admin
+        type: string
+      secret:
+        example: admin_secret
+        type: string
+    required:
+    - adminID
+    - secret
+    type: object
+  apistruct.GetAdminTokenResp:
+    properties:
+      expireTimeSeconds:
+        example: 86400
+        type: integer
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  apistruct.GetConfigListResp:
+    properties:
+      configNames:
+        example:
+        - log.yaml
+        - kafka.yaml
+        - redis.yaml
+        items:
+          type: string
+        type: array
+      environment:
+        example: production
+        type: string
+      version:
+        example: v3.8.3
+        type: string
+    type: object
+  apistruct.GetConfigReq:
+    properties:
+      configName:
+        example: log.yaml
+        type: string
+    required:
+    - configName
+    type: object
+  apistruct.GetDesignateUsersReq:
+    properties:
+      userIDs:
+        example:
+        - user123
+        - user456
+        items:
+          type: string
+        type: array
+    required:
+    - userIDs
+    type: object
+  apistruct.GetDesignateUsersResp:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/apistruct.PublicUserInfo'
+        type: array
+    type: object
+  apistruct.GetEnableConfigManagerResp:
+    properties:
+      enable:
+        example: true
+        type: boolean
+    type: object
+  apistruct.GetUserTokenReq:
+    properties:
+      platformID:
+        example: 1
+        maximum: 12
+        minimum: 1
+        type: integer
+      secret:
+        example: openIM123
+        type: string
+      userID:
+        example: user123
+        type: string
+    required:
+    - platformID
+    - secret
+    - userID
+    type: object
+  apistruct.GetUserTokenResp:
+    properties:
+      expireTimeSeconds:
+        example: 86400
+        type: integer
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  apistruct.Int32Value:
+    properties:
+      value:
+        type: integer
+    type: object
+  apistruct.Int64Value:
+    properties:
+      value:
+        type: integer
+    type: object
+  apistruct.ParseTokenReq:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - token
+    type: object
+  apistruct.ParseTokenResp:
+    properties:
+      expireTimeSeconds:
+        example: 86400
+        type: integer
+      platform:
+        example: iOS
+        type: string
+      userID:
+        example: user123
+        type: string
+    type: object
+  apistruct.PublicUserInfo:
+    properties:
+      ex:
+        example: '{}'
+        type: string
+      faceURL:
+        example: https://example.com/avatar.jpg
+        type: string
+      gender:
+        example: 1
+        type: integer
+      nickname:
+        example: 张三
+        type: string
+      userID:
+        example: user123
+        type: string
+    type: object
+  apistruct.SetConfigReq:
+    properties:
+      configName:
+        example: log.yaml
+        type: string
+      data:
+        example: '{"level":"info","format":"json"}'
+        type: string
+    required:
+    - configName
+    - data
+    type: object
+  apistruct.SetEnableConfigManagerReq:
+    properties:
+      enable:
+        example: true
+        type: boolean
+    type: object
+  apistruct.SimpleSendMsgReq:
+    properties:
+      content:
+        additionalProperties: true
+        type: object
+      contentType:
+        example: 101
+        type: integer
+      ex:
+        example: '{}'
+        type: string
+      groupID:
+        example: group123
+        type: string
+      isOnlineOnly:
+        example: false
+        type: boolean
+      notOfflinePush:
+        example: false
+        type: boolean
+      recvID:
+        example: user123
+        type: string
+      sendID:
+        example: admin
+        type: string
+      sendTime:
+        example: 1640995200000
+        type: integer
+      senderFaceURL:
+        example: https://example.com/avatar.jpg
+        type: string
+      senderNickname:
+        example: 管理员
+        type: string
+      senderPlatformID:
+        example: 1
+        type: integer
+      sessionType:
+        example: 1
+        type: integer
+    required:
+    - content
+    - contentType
+    - sendID
+    - sessionType
+    type: object
+  apistruct.SimpleSendMsgResp:
+    properties:
+      clientMsgID:
+        example: client_msg_123
+        type: string
+      sendTime:
+        example: 1640995200000
+        type: integer
+      serverMsgID:
+        example: msg_123456
+        type: string
+    type: object
+  apistruct.StringValue:
+    properties:
+      value:
+        type: string
+    type: object
+  apistruct.UpdateUserInfoExReq:
+    properties:
+      areaCode:
+        $ref: '#/definitions/apistruct.StringValue'
+      birth:
+        $ref: '#/definitions/apistruct.Int64Value'
+      email:
+        $ref: '#/definitions/apistruct.StringValue'
+      ex:
+        $ref: '#/definitions/apistruct.StringValue'
+      faceURL:
+        $ref: '#/definitions/apistruct.StringValue'
+      gender:
+        $ref: '#/definitions/apistruct.Int32Value'
+      nickname:
+        $ref: '#/definitions/apistruct.StringValue'
+      phoneNumber:
+        $ref: '#/definitions/apistruct.StringValue'
+      userID:
+        example: user123
+        type: string
+    required:
+    - userID
+    type: object
+  apistruct.UserInfo:
+    properties:
+      areaCode:
+        example: "+86"
+        type: string
+      birth:
+        example: 946656000000
+        type: integer
+      email:
+        example: user@example.com
+        type: string
+      ex:
+        example: '{}'
+        type: string
+      faceURL:
+        example: https://example.com/avatar.jpg
+        type: string
+      gender:
+        example: 1
+        type: integer
+      nickname:
+        example: 张三
+        type: string
+      phoneNumber:
+        example: "13812345678"
+        type: string
+      userID:
+        example: user123
+        type: string
+    required:
+    - nickname
+    - userID
+    type: object
+  apistruct.UserRegisterReq:
+    properties:
+      secret:
+        example: openIM123
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/apistruct.UserInfo'
+        type: array
+    required:
+    - secret
+    - users
+    type: object
+  apistruct.UserRegisterResp:
+    properties:
+      userID:
+        example: user123
+        type: string
+    type: object
+host: localhost:10002
+info:
+  contact:
+    email: contact@openim.io
+    name: OpenIM Support
+    url: https://github.com/openimsdk/open-im-server
+  description: |-
+    OpenIM Server 提供即时通讯服务的 REST API 接口文档
+
+    ## 认证方式
+    大部分接口需要在 Header 中携带 token 进行认证：
+    - Header名称: token
+    - 获取方式: 调用 /auth/get_user_token 接口
+
+    ## 接口规范
+    - 所有接口均使用 POST 方法
+    - Content-Type: application/json
+    - 响应格式: JSON
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: OpenIM Server API
+  version: "3.8"
+paths:
+  /auth/force_logout:
+    post:
+      consumes:
+      - application/json
+      description: 强制指定用户登出，清除其所有Token
+      parameters:
+      - description: 强制登出信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.ForceLogoutReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 强制登出用户
+      tags:
+      - 认证管理
+  /auth/get_admin_token:
+    post:
+      consumes:
+      - application/json
+      description: 管理员登录获取访问令牌
+      parameters:
+      - description: 管理员登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.GetAdminTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.GetAdminTokenResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 认证失败
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      summary: 获取管理员Token
+      tags:
+      - 认证管理
+  /auth/get_user_token:
+    post:
+      consumes:
+      - application/json
+      description: 用户登录获取访问令牌，用于后续API调用的身份认证
+      parameters:
+      - description: 用户登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.GetUserTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应，包含token和过期时间
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.GetUserTokenResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 认证失败，用户名或密码错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      summary: 获取用户Token
+      tags:
+      - 认证管理
+  /auth/parse_token:
+    post:
+      consumes:
+      - application/json
+      description: 解析并验证Token的有效性，返回Token中包含的用户信息
+      parameters:
+      - description: Token信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.ParseTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应，包含用户ID和过期时间
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.ParseTokenResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: Token无效或已过期
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      summary: 解析Token
+      tags:
+      - 认证管理
+  /config/get_config:
+    post:
+      consumes:
+      - application/json
+      description: 根据配置名称获取配置内容（需要管理员权限）
+      parameters:
+      - description: 配置名称
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.GetConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应，返回配置JSON字符串
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 获取指定配置
+      tags:
+      - 配置管理
+  /config/get_config_list:
+    post:
+      consumes:
+      - application/json
+      description: 获取所有可用的配置名称列表、环境信息和版本信息（需要管理员权限）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.GetConfigListResp'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 获取配置列表
+      tags:
+      - 配置管理
+  /config/get_enable_config_manager:
+    post:
+      consumes:
+      - application/json
+      description: 获取配置管理器的启用状态（需要管理员权限）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.GetEnableConfigManagerResp'
+              type: object
+        "400":
+          description: 获取状态失败
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 获取配置管理器状态
+      tags:
+      - 配置管理
+  /config/reset_config:
+    post:
+      consumes:
+      - application/json
+      description: 重置所有配置为初始值（需要管理员权限，异步执行）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应（异步执行）
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 重置配置
+      tags:
+      - 配置管理
+  /config/set_config:
+    post:
+      consumes:
+      - application/json
+      description: 修改指定配置的内容（需要管理员权限，仅ETCD模式支持）
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.SetConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "400":
+          description: 请求参数错误或非ETCD模式
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 设置单个配置
+      tags:
+      - 配置管理
+  /config/set_enable_config_manager:
+    post:
+      consumes:
+      - application/json
+      description: 启用或禁用配置管理器（需要管理员权限，仅ETCD模式支持）
+      parameters:
+      - description: 启用状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.SetEnableConfigManagerReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "400":
+          description: 请求参数错误或非ETCD模式
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 设置配置管理器状态
+      tags:
+      - 配置管理
+  /msg/send_msg:
+    post:
+      consumes:
+      - application/json
+      description: 管理员发送消息到指定用户或群组
+      parameters:
+      - description: 消息内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.SimpleSendMsgReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.SimpleSendMsgResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足，仅管理员可发送
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 发送消息
+      tags:
+      - 消息管理
+  /restart:
+    post:
+      consumes:
+      - application/json
+      description: 通过ETCD通知所有服务实例重启（需要管理员权限，异步执行）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应（异步执行）
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 重启服务
+      tags:
+      - 配置管理
+  /user/get_users_info:
+    post:
+      consumes:
+      - application/json
+      description: 批量获取指定用户的公开信息
+      parameters:
+      - description: 用户ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.GetDesignateUsersReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应，返回用户信息列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.GetDesignateUsersResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 获取用户公开信息
+      tags:
+      - 用户管理
+  /user/update_user_info_ex:
+    post:
+      consumes:
+      - application/json
+      description: 更新用户的详细信息，支持部分更新
+      parameters:
+      - description: 用户信息更新内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.UpdateUserInfoExReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 更新用户信息
+      tags:
+      - 用户管理
+  /user/user_register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户账号
+      parameters:
+      - description: 用户注册信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apistruct.UserRegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应
+          schema:
+            allOf:
+            - $ref: '#/definitions/apistruct.ApiResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/apistruct.UserRegisterResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+        "409":
+          description: 用户已存在
+          schema:
+            $ref: '#/definitions/apistruct.ApiResponse'
+      security:
+      - BearerToken: []
+      summary: 用户注册
+      tags:
+      - 用户管理
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerToken:
+    in: header
+    name: token
+    type: apiKey
+swagger: "2.0"

@@ -29,7 +29,10 @@ import (
 	"github.com/openimsdk/tools/log"
 	"github.com/openimsdk/tools/mw"
 	"github.com/openimsdk/tools/mw/api"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	_ "github.com/openimsdk/open-im-server/v3/docs"
 )
 
 const (
@@ -327,6 +330,15 @@ func newGinRouter(ctx context.Context, client discovery.SvcDiscoveryRegistry, cf
 	{
 		r.POST("/restart", cm.CheckAdmin, cm.Restart)
 	}
+	
+	// Swagger 文档路由
+	{
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+		r.GET("/docs", func(c *gin.Context) {
+			c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+		})
+	}
+	
 	return r, nil
 }
 

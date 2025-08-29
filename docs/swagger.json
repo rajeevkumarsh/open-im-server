@@ -1,0 +1,1349 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "OpenIM Server 提供即时通讯服务的 REST API 接口文档\n\n## 认证方式\n大部分接口需要在 Header 中携带 token 进行认证：\n- Header名称: token\n- 获取方式: 调用 /auth/get_user_token 接口\n\n## 接口规范\n- 所有接口均使用 POST 方法\n- Content-Type: application/json\n- 响应格式: JSON",
+        "title": "OpenIM Server API",
+        "contact": {
+            "name": "OpenIM Support",
+            "url": "https://github.com/openimsdk/open-im-server",
+            "email": "contact@openim.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "3.8"
+    },
+    "host": "localhost:10002",
+    "basePath": "/",
+    "paths": {
+        "/auth/force_logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "强制指定用户登出，清除其所有Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证管理"
+                ],
+                "summary": "强制登出用户",
+                "parameters": [
+                    {
+                        "description": "强制登出信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ForceLogoutReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/get_admin_token": {
+            "post": {
+                "description": "管理员登录获取访问令牌",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证管理"
+                ],
+                "summary": "获取管理员Token",
+                "parameters": [
+                    {
+                        "description": "管理员登录信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.GetAdminTokenReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.GetAdminTokenResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "认证失败",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/get_user_token": {
+            "post": {
+                "description": "用户登录获取访问令牌，用于后续API调用的身份认证",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证管理"
+                ],
+                "summary": "获取用户Token",
+                "parameters": [
+                    {
+                        "description": "用户登录信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.GetUserTokenReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应，包含token和过期时间",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.GetUserTokenResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "认证失败，用户名或密码错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/parse_token": {
+            "post": {
+                "description": "解析并验证Token的有效性，返回Token中包含的用户信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证管理"
+                ],
+                "summary": "解析Token",
+                "parameters": [
+                    {
+                        "description": "Token信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ParseTokenReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应，包含用户ID和过期时间",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.ParseTokenResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Token无效或已过期",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/get_config": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "根据配置名称获取配置内容（需要管理员权限）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "获取指定配置",
+                "parameters": [
+                    {
+                        "description": "配置名称",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.GetConfigReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应，返回配置JSON字符串",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/get_config_list": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "获取所有可用的配置名称列表、环境信息和版本信息（需要管理员权限）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "获取配置列表",
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.GetConfigListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/get_enable_config_manager": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "获取配置管理器的启用状态（需要管理员权限）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "获取配置管理器状态",
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.GetEnableConfigManagerResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "获取状态失败",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/reset_config": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "重置所有配置为初始值（需要管理员权限，异步执行）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "重置配置",
+                "responses": {
+                    "200": {
+                        "description": "成功响应（异步执行）",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/set_config": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "修改指定配置的内容（需要管理员权限，仅ETCD模式支持）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "设置单个配置",
+                "parameters": [
+                    {
+                        "description": "配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.SetConfigReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或非ETCD模式",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/config/set_enable_config_manager": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "启用或禁用配置管理器（需要管理员权限，仅ETCD模式支持）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "设置配置管理器状态",
+                "parameters": [
+                    {
+                        "description": "启用状态",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.SetEnableConfigManagerReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或非ETCD模式",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/msg/send_msg": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "管理员发送消息到指定用户或群组",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "消息管理"
+                ],
+                "summary": "发送消息",
+                "parameters": [
+                    {
+                        "description": "消息内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.SimpleSendMsgReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.SimpleSendMsgResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足，仅管理员可发送",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/restart": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "通过ETCD通知所有服务实例重启（需要管理员权限，异步执行）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "配置管理"
+                ],
+                "summary": "重启服务",
+                "responses": {
+                    "200": {
+                        "description": "成功响应（异步执行）",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/get_users_info": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "批量获取指定用户的公开信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "获取用户公开信息",
+                "parameters": [
+                    {
+                        "description": "用户ID列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.GetDesignateUsersReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应，返回用户信息列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.GetDesignateUsersResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/update_user_info_ex": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "更新用户的详细信息，支持部分更新",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "更新用户信息",
+                "parameters": [
+                    {
+                        "description": "用户信息更新内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.UpdateUserInfoExReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/user_register": {
+            "post": {
+                "security": [
+                    {
+                        "BearerToken": []
+                    }
+                ],
+                "description": "注册新用户账号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "用户注册",
+                "parameters": [
+                    {
+                        "description": "用户注册信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.UserRegisterReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功响应",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/apistruct.ApiResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/apistruct.UserRegisterResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "用户已存在",
+                        "schema": {
+                            "$ref": "#/definitions/apistruct.ApiResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "apistruct.ApiResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "errCode": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "errDlt": {
+                    "type": "string",
+                    "example": ""
+                },
+                "errMsg": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "apistruct.ForceLogoutReq": {
+            "type": "object",
+            "required": [
+                "platformID",
+                "userID"
+            ],
+            "properties": {
+                "platformID": {
+                    "type": "integer",
+                    "maximum": 12,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.GetAdminTokenReq": {
+            "type": "object",
+            "required": [
+                "adminID",
+                "secret"
+            ],
+            "properties": {
+                "adminID": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "secret": {
+                    "type": "string",
+                    "example": "admin_secret"
+                }
+            }
+        },
+        "apistruct.GetAdminTokenResp": {
+            "type": "object",
+            "properties": {
+                "expireTimeSeconds": {
+                    "type": "integer",
+                    "example": 86400
+                },
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "apistruct.GetConfigListResp": {
+            "type": "object",
+            "properties": {
+                "configNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "log.yaml",
+                        "kafka.yaml",
+                        "redis.yaml"
+                    ]
+                },
+                "environment": {
+                    "type": "string",
+                    "example": "production"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "v3.8.3"
+                }
+            }
+        },
+        "apistruct.GetConfigReq": {
+            "type": "object",
+            "required": [
+                "configName"
+            ],
+            "properties": {
+                "configName": {
+                    "type": "string",
+                    "example": "log.yaml"
+                }
+            }
+        },
+        "apistruct.GetDesignateUsersReq": {
+            "type": "object",
+            "required": [
+                "userIDs"
+            ],
+            "properties": {
+                "userIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user123",
+                        "user456"
+                    ]
+                }
+            }
+        },
+        "apistruct.GetDesignateUsersResp": {
+            "type": "object",
+            "properties": {
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apistruct.PublicUserInfo"
+                    }
+                }
+            }
+        },
+        "apistruct.GetEnableConfigManagerResp": {
+            "type": "object",
+            "properties": {
+                "enable": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "apistruct.GetUserTokenReq": {
+            "type": "object",
+            "required": [
+                "platformID",
+                "secret",
+                "userID"
+            ],
+            "properties": {
+                "platformID": {
+                    "type": "integer",
+                    "maximum": 12,
+                    "minimum": 1,
+                    "example": 1
+                },
+                "secret": {
+                    "type": "string",
+                    "example": "openIM123"
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.GetUserTokenResp": {
+            "type": "object",
+            "properties": {
+                "expireTimeSeconds": {
+                    "type": "integer",
+                    "example": 86400
+                },
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "apistruct.Int32Value": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apistruct.Int64Value": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "apistruct.ParseTokenReq": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "apistruct.ParseTokenResp": {
+            "type": "object",
+            "properties": {
+                "expireTimeSeconds": {
+                    "type": "integer",
+                    "example": 86400
+                },
+                "platform": {
+                    "type": "string",
+                    "example": "iOS"
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.PublicUserInfo": {
+            "type": "object",
+            "properties": {
+                "ex": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "faceURL": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "gender": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "nickname": {
+                    "type": "string",
+                    "example": "张三"
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.SetConfigReq": {
+            "type": "object",
+            "required": [
+                "configName",
+                "data"
+            ],
+            "properties": {
+                "configName": {
+                    "type": "string",
+                    "example": "log.yaml"
+                },
+                "data": {
+                    "type": "string",
+                    "example": "{\"level\":\"info\",\"format\":\"json\"}"
+                }
+            }
+        },
+        "apistruct.SetEnableConfigManagerReq": {
+            "type": "object",
+            "properties": {
+                "enable": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "apistruct.SimpleSendMsgReq": {
+            "type": "object",
+            "required": [
+                "content",
+                "contentType",
+                "sendID",
+                "sessionType"
+            ],
+            "properties": {
+                "content": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "contentType": {
+                    "type": "integer",
+                    "example": 101
+                },
+                "ex": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "groupID": {
+                    "type": "string",
+                    "example": "group123"
+                },
+                "isOnlineOnly": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "notOfflinePush": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "recvID": {
+                    "type": "string",
+                    "example": "user123"
+                },
+                "sendID": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "sendTime": {
+                    "type": "integer",
+                    "example": 1640995200000
+                },
+                "senderFaceURL": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "senderNickname": {
+                    "type": "string",
+                    "example": "管理员"
+                },
+                "senderPlatformID": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "sessionType": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "apistruct.SimpleSendMsgResp": {
+            "type": "object",
+            "properties": {
+                "clientMsgID": {
+                    "type": "string",
+                    "example": "client_msg_123"
+                },
+                "sendTime": {
+                    "type": "integer",
+                    "example": 1640995200000
+                },
+                "serverMsgID": {
+                    "type": "string",
+                    "example": "msg_123456"
+                }
+            }
+        },
+        "apistruct.StringValue": {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "apistruct.UpdateUserInfoExReq": {
+            "type": "object",
+            "required": [
+                "userID"
+            ],
+            "properties": {
+                "areaCode": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "birth": {
+                    "$ref": "#/definitions/apistruct.Int64Value"
+                },
+                "email": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "ex": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "faceURL": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "gender": {
+                    "$ref": "#/definitions/apistruct.Int32Value"
+                },
+                "nickname": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "phoneNumber": {
+                    "$ref": "#/definitions/apistruct.StringValue"
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.UserInfo": {
+            "type": "object",
+            "required": [
+                "nickname",
+                "userID"
+            ],
+            "properties": {
+                "areaCode": {
+                    "type": "string",
+                    "example": "+86"
+                },
+                "birth": {
+                    "type": "integer",
+                    "example": 946656000000
+                },
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "ex": {
+                    "type": "string",
+                    "example": "{}"
+                },
+                "faceURL": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "gender": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "nickname": {
+                    "type": "string",
+                    "example": "张三"
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "13812345678"
+                },
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "apistruct.UserRegisterReq": {
+            "type": "object",
+            "required": [
+                "secret",
+                "users"
+            ],
+            "properties": {
+                "secret": {
+                    "type": "string",
+                    "example": "openIM123"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/apistruct.UserInfo"
+                    }
+                }
+            }
+        },
+        "apistruct.UserRegisterResp": {
+            "type": "object",
+            "properties": {
+                "userID": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerToken": {
+            "type": "apiKey",
+            "name": "token",
+            "in": "header"
+        }
+    }
+}

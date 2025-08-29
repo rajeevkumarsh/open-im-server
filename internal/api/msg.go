@@ -277,6 +277,19 @@ func (m *MessageApi) ginRespSendMsg(c *gin.Context, req *msg.SendMsgReq, resp *m
 }
 
 // SendMessage handles the sending of a message. It's an HTTP handler function to be used with Gin framework.
+// SendMessage 发送消息
+// @Summary 发送消息
+// @Description 管理员发送消息到指定用户或群组
+// @Tags 消息管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.SimpleSendMsgReq true "消息内容"
+// @Success 200 {object} apistruct.ApiResponse{data=apistruct.SimpleSendMsgResp} "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Failure 403 {object} apistruct.ApiResponse "权限不足，仅管理员可发送"
+// @Router /msg/send_msg [post]
 func (m *MessageApi) SendMessage(c *gin.Context) {
 	// Initialize a request struct for sending a message.
 	req := apistruct.SendMsgReq{}

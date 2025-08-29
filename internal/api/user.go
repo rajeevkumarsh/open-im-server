@@ -16,6 +16,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	_ "github.com/openimsdk/open-im-server/v3/pkg/apistruct"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/config"
 	"github.com/openimsdk/protocol/constant"
 	"github.com/openimsdk/protocol/msggateway"
@@ -37,6 +38,18 @@ func NewUserApi(client user.UserClient, discov discovery.Conn, config config.Rpc
 	return UserApi{Client: client, discov: discov, config: config}
 }
 
+// UserRegister 用户注册
+// @Summary 用户注册
+// @Description 注册新用户账号
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.UserRegisterReq true "用户注册信息"
+// @Success 200 {object} apistruct.ApiResponse{data=apistruct.UserRegisterResp} "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误"
+// @Failure 409 {object} apistruct.ApiResponse "用户已存在"
+// @Router /user/user_register [post]
 func (u *UserApi) UserRegister(c *gin.Context) {
 	a2r.Call(c, user.UserClient.UserRegister, u.Client)
 }
@@ -46,6 +59,18 @@ func (u *UserApi) UpdateUserInfo(c *gin.Context) {
 	a2r.Call(c, user.UserClient.UpdateUserInfo, u.Client)
 }
 
+// UpdateUserInfoEx 更新用户信息（扩展版）
+// @Summary 更新用户信息
+// @Description 更新用户的详细信息，支持部分更新
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.UpdateUserInfoExReq true "用户信息更新内容"
+// @Success 200 {object} apistruct.ApiResponse "成功响应"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Router /user/update_user_info_ex [post]
 func (u *UserApi) UpdateUserInfoEx(c *gin.Context) {
 	a2r.Call(c, user.UserClient.UpdateUserInfoEx, u.Client)
 }
@@ -53,6 +78,18 @@ func (u *UserApi) SetGlobalRecvMessageOpt(c *gin.Context) {
 	a2r.Call(c, user.UserClient.SetGlobalRecvMessageOpt, u.Client)
 }
 
+// GetUsersPublicInfo 获取用户公开信息
+// @Summary 获取用户公开信息
+// @Description 批量获取指定用户的公开信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerToken
+// @Param body body apistruct.GetDesignateUsersReq true "用户ID列表"
+// @Success 200 {object} apistruct.ApiResponse{data=apistruct.GetDesignateUsersResp} "成功响应，返回用户信息列表"
+// @Failure 400 {object} apistruct.ApiResponse "请求参数错误"
+// @Failure 401 {object} apistruct.ApiResponse "未授权"
+// @Router /user/get_users_info [post]
 func (u *UserApi) GetUsersPublicInfo(c *gin.Context) {
 	a2r.Call(c, user.UserClient.GetDesignateUsers, u.Client)
 }

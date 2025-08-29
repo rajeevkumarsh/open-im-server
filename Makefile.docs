@@ -1,0 +1,38 @@
+# OpenIM Server API 文档 Makefile
+.PHONY: help swagger swagger-install swagger-clean swagger-serve
+
+# 默认目标
+help: ## 显示帮助信息
+	@echo "OpenIM Server API 文档管理"
+	@echo ""
+	@echo "可用命令："
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+swagger-install: ## 安装 Swagger 工具
+	@echo "安装 Swagger 工具..."
+	go install github.com/swaggo/swag/cmd/swag@latest
+	go get -u github.com/swaggo/gin-swagger
+	go get -u github.com/swaggo/files
+	@echo "✅ Swagger 工具安装完成"
+
+swagger: ## 生成 Swagger 文档
+	@echo "生成 Swagger API 文档..."
+	@bash scripts/generate-swagger.sh
+
+swagger-clean: ## 清理生成的文档
+	@echo "清理 Swagger 文档..."
+	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
+	@echo "✅ 文档已清理"
+
+swagger-serve: ## 启动独立的文档服务器
+	@echo "启动 Swagger UI 服务器..."
+	@if [ ! -f docs/swagger.json ]; then \
+		echo "文档不存在，先生成文档..."; \
+		make swagger; \
+	fi
+	@echo "正在 http://localhost:8080 启动文档服务器..."
+	@echo "使用 Ctrl+C 停止服务器"
+	@cd docs && python3 -m http.server 8080 2>/dev/null || python -m SimpleHTTPServer 8080
+
+# 组合命令
+docs: swagger ## 生成所有文档（别名）
