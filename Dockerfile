@@ -47,70 +47,73 @@ COPY --from=builder $SERVER_DIR/go.sum $SERVER_DIR/
 RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.11
 
 # Create startup script
-RUN echo '#!/bin/bash\n\
-cd /openim-server\n\
-\n\
-# Discord webhook URL (if available)\n\
-DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"\n\
-\n\
-# Get current time and image info\n\
-CURRENT_TIME=$(date)\n\
-HOSTNAME=$(hostname)\n\
-\n\
-# Send startup notification\n\
-send_notification() {\n\
-    local title="$1"\n\
-    local description="$2"\n\
-    local color="$3"\n\
-    \n\
-    curl -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d "{\n\
-        \"embeds\": [{\n\
-            \"title\": \"$title\",\n\
-            \"description\": \"$description\",\n\
-            \"color\": $color,\n\
-            \"fields\": [\n\
-                {\"name\": \"容器\", \"value\": \"$HOSTNAME\", \"inline\": true},\n\
-                {\"name\": \"启动时间\", \"value\": \"$CURRENT_TIME\", \"inline\": true}\n\
-            ]\n\
-        }]\n\
-    }" 2>/dev/null || echo "Discord notification failed"\n\
-}\n\
-\n\
-# Wait for dependencies to be ready\n\
-echo "Waiting for dependencies..."\n\
-sleep 10\n\
-\n\
-# Start OpenIM services in background\n\
-echo "Starting OpenIM services..."\n\
-nohup ./_output/bin/openim-api --config /openim/config > /openim/logs/openim-api.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-user --config /openim/config > /openim/logs/openim-rpc-user.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-friend --config /openim/config > /openim/logs/openim-rpc-friend.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-msg --config /openim/config > /openim/logs/openim-rpc-msg.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-conversation --config /openim/config > /openim/logs/openim-rpc-conversation.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-group --config /openim/config > /openim/logs/openim-rpc-group.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-auth --config /openim/config > /openim/logs/openim-rpc-auth.log 2>&1 &\n\
-nohup ./_output/bin/openim-rpc-third --config /openim/config > /openim/logs/openim-rpc-third.log 2>&1 &\n\
-nohup ./_output/bin/openim-push --config /openim/config > /openim/logs/openim-push.log 2>&1 &\n\
-nohup ./_output/bin/openim-msgtransfer --config /openim/config > /openim/logs/openim-msgtransfer.log 2>&1 &\n\
-nohup ./_output/bin/openim-msggateway --config /openim/config > /openim/logs/openim-msggateway.log 2>&1 &\n\
-nohup ./_output/bin/openim-crontask --config /openim/config > /openim/logs/openim-crontask.log 2>&1 &\n\
-\n\
-echo "All services started. Waiting for service initialization..."\n\
-sleep 15\n\
-\n\
-# Test if API is responding\n\
-if curl -X POST http://localhost:10002/msg/get_server_time >/dev/null 2>&1; then\n\
-    echo "✅ OpenIM Server started successfully"\n\
-    send_notification "✅ OpenIM Server - 服务启动成功" "所有服务组件已启动并正常响应" "3066993"\n\
-else\n\
-    echo "⚠️ OpenIM Server may have issues"\n\
-    send_notification "⚠️ OpenIM Server - 服务启动异常" "服务已启动但API响应异常，请检查日志" "16776960"\n\
-fi\n\
-\n\
-echo "Container is ready. Keeping running..."\n\
-# Keep container running\n\
-tail -f /dev/null\n\
-' > /usr/local/bin/start-openim.sh && chmod +x /usr/local/bin/start-openim.sh
+COPY <<EOF /usr/local/bin/start-openim.sh
+#!/bin/bash
+cd /openim-server
+
+# Discord webhook URL
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"
+
+# Get current time and image info
+CURRENT_TIME=\$(date)
+HOSTNAME=\$(hostname)
+
+# Send startup notification
+send_notification() {
+    local title="\$1"
+    local description="\$2"
+    local color="\$3"
+    
+    curl -X POST "\$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d "{
+        \"embeds\": [{
+            \"title\": \"\$title\",
+            \"description\": \"\$description\",
+            \"color\": \$color,
+            \"fields\": [
+                {\"name\": \"容器\", \"value\": \"\$HOSTNAME\", \"inline\": true},
+                {\"name\": \"启动时间\", \"value\": \"\$CURRENT_TIME\", \"inline\": true}
+            ]
+        }]
+    }" 2>/dev/null || echo "Discord notification failed"
+}
+
+# Wait for dependencies to be ready
+echo "Waiting for dependencies..."
+sleep 10
+
+# Start OpenIM services in background
+echo "Starting OpenIM services..."
+nohup ./_output/bin/openim-api --config /openim/config > /openim/logs/openim-api.log 2>&1 &
+nohup ./_output/bin/openim-rpc-user --config /openim/config > /openim/logs/openim-rpc-user.log 2>&1 &
+nohup ./_output/bin/openim-rpc-friend --config /openim/config > /openim/logs/openim-rpc-friend.log 2>&1 &
+nohup ./_output/bin/openim-rpc-msg --config /openim/config > /openim/logs/openim-rpc-msg.log 2>&1 &
+nohup ./_output/bin/openim-rpc-conversation --config /openim/config > /openim/logs/openim-rpc-conversation.log 2>&1 &
+nohup ./_output/bin/openim-rpc-group --config /openim/config > /openim/logs/openim-rpc-group.log 2>&1 &
+nohup ./_output/bin/openim-rpc-auth --config /openim/config > /openim/logs/openim-rpc-auth.log 2>&1 &
+nohup ./_output/bin/openim-rpc-third --config /openim/config > /openim/logs/openim-rpc-third.log 2>&1 &
+nohup ./_output/bin/openim-push --config /openim/config > /openim/logs/openim-push.log 2>&1 &
+nohup ./_output/bin/openim-msgtransfer --config /openim/config > /openim/logs/openim-msgtransfer.log 2>&1 &
+nohup ./_output/bin/openim-msggateway --config /openim/config > /openim/logs/openim-msggateway.log 2>&1 &
+nohup ./_output/bin/openim-crontask --config /openim/config > /openim/logs/openim-crontask.log 2>&1 &
+
+echo "All services started. Waiting for service initialization..."
+sleep 15
+
+# Test if API is responding
+if curl -X POST http://localhost:10002/msg/get_server_time >/dev/null 2>&1; then
+    echo "✅ OpenIM Server started successfully"
+    send_notification "✅ OpenIM Server - 服务启动成功" "所有服务组件已启动并正常响应" "3066993"
+else
+    echo "⚠️ OpenIM Server may have issues"
+    send_notification "⚠️ OpenIM Server - 服务启动异常" "服务已启动但API响应异常，请检查日志" "16776960"
+fi
+
+echo "Container is ready. Keeping running..."
+# Keep container running
+tail -f /dev/null
+EOF
+
+RUN chmod +x /usr/local/bin/start-openim.sh
 
 # Set the command to run when the container starts
 ENTRYPOINT ["/usr/local/bin/start-openim.sh"]
