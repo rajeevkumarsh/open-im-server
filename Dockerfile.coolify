@@ -72,13 +72,15 @@ COPY --from=builder --chown=openim:openim /openim-server/start-config.yml $SERVE
 COPY --from=builder --chown=openim:openim /openim-server/go.mod $SERVER_DIR/
 COPY --from=builder --chown=openim:openim /openim-server/go.sum $SERVER_DIR/
 COPY --from=builder --chown=openim:openim /openim-server/magefile*.go $SERVER_DIR/
+COPY --from=builder --chown=openim:openim /openim-server/scripts/docker-entrypoint.sh $SERVER_DIR/
 COPY --from=builder /go/bin/mage /usr/local/bin/mage
 
-# 创建必要目录
+# 创建必要目录并设置权限
 RUN mkdir -p \
     $SERVER_DIR/_output/logs \
     $SERVER_DIR/data \
-    && chown -R openim:openim $SERVER_DIR
+    && chown -R openim:openim $SERVER_DIR \
+    && chmod +x $SERVER_DIR/docker-entrypoint.sh
 
 # 注意：运行阶段不需要 Go 环境，所有依赖已在构建阶段处理
 
@@ -93,4 +95,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 10002 10001
 
 # 启动命令
-ENTRYPOINT ["sh", "-c", "mage start && tail -f /dev/null"]
+CMD ["./docker-entrypoint.sh"]
