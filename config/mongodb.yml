@@ -5,9 +5,9 @@ address: [localhost:37017]
 # Name of the database
 database: openim_v3
 # Username for database authentication
-username: openIM
+username: mongo_Qf3zmR
 # Password for database authentication
-password: openIM123
+password: mongo_6Qc4RX
 # Authentication source for database authentication, if use root user, set it to admin
 authSource: openim_v3
 # Maximum number of connections in the connection pool
