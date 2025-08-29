@@ -56,74 +56,86 @@ jobs:
     - name: Notify Discord - Build Success
       if: success()
       run: |
-        curl -X POST ${{ secrets.DISCORD_WEBHOOK_URL }} \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
-          -d '{
-            "embeds": [{
-              "title": "🚀 OpenIM Server - 构建成功",
-              "description": "Docker 镜像构建并推送完成",
-              "color": 3066993,
-              "fields": [
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🚀 OpenIM Server - 构建成功\",
+              \"description\": \"Docker 镜像构建并推送完成\",
+              \"color\": 3066993,
+              \"fields\": [
                 {
-                  "name": "分支",
-                  "value": "`${{ github.ref_name }}`",
-                  "inline": true
+                  \"name\": \"分支\",
+                  \"value\": \"\`${{ github.ref_name }}\`\",
+                  \"inline\": true
                 },
                 {
-                  "name": "提交",
-                  "value": "`${{ github.sha }}` (${{ github.event.head_commit.message }})",
-                  "inline": false
+                  \"name\": \"提交\",
+                  \"value\": \"\`${{ github.sha }}\`\",
+                  \"inline\": false
                 },
                 {
-                  "name": "镜像",
-                  "value": "`ghcr.io/${{ github.repository }}:${{ github.ref_name }}-${{ github.sha }}`",
-                  "inline": false
+                  \"name\": \"镜像\",
+                  \"value\": \"\`ghcr.io/${{ github.repository }}:${{ github.ref_name }}-${{ github.sha }}\`\",
+                  \"inline\": false
                 },
                 {
-                  "name": "构建者",
-                  "value": "${{ github.actor }}",
-                  "inline": true
+                  \"name\": \"构建者\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
                 }
-              ],
-              "timestamp": "${{ github.event.head_commit.timestamp }}"
+              ]
             }]
-          }'
+          }"
 
-    - name: Deploy to server via webhook
+    - name: Deploy to server via SSH
       if: github.ref == 'refs/heads/develop_build'
-      run: |
-        # 触发 Coolify 重新部署
-        curl -X POST ${{ secrets.COOLIFY_WEBHOOK_URL }} \
-          -H "Content-Type: application/json" \
-          -d '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        script: |
+          # 进入项目目录
+          cd ${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}
+          
+          # 更新代码到最新版本
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
+          
+          # 运行部署脚本
+          chmod +x deploy.sh
+          ./deploy.sh
+          
+          echo "部署完成: ${{ github.sha }}"
 
     - name: Notify Discord - Build Failed
       if: failure()
       run: |
-        curl -X POST ${{ secrets.DISCORD_WEBHOOK_URL }} \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
           -H "Content-Type: application/json" \
-          -d '{
-            "embeds": [{
-              "title": "❌ OpenIM Server - 构建失败",
-              "description": "Docker 镜像构建过程中出现错误",
-              "color": 15158332,
-              "fields": [
+          -d "{
+            \"embeds\": [{
+              \"title\": \"❌ OpenIM Server - 构建失败\",
+              \"description\": \"Docker 镜像构建过程中出现错误\",
+              \"color\": 15158332,
+              \"fields\": [
                 {
-                  "name": "分支",
-                  "value": "`${{ github.ref_name }}`",
-                  "inline": true
+                  \"name\": \"分支\",
+                  \"value\": \"\`${{ github.ref_name }}\`\",
+                  \"inline\": true
                 },
                 {
-                  "name": "提交",
-                  "value": "`${{ github.sha }}` (${{ github.event.head_commit.message }})",
-                  "inline": false
+                  \"name\": \"提交\",
+                  \"value\": \"\`${{ github.sha }}\`\",
+                  \"inline\": false
                 },
                 {
-                  "name": "构建者",
-                  "value": "${{ github.actor }}",
-                  "inline": true
+                  \"name\": \"构建者\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
                 }
-              ],
-              "timestamp": "${{ github.event.head_commit.timestamp }}"
+              ]
             }]
-          }'
+          }"
