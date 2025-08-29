@@ -1,6 +1,8 @@
 version: '3.8'
 
 networks:
+  1panel-network:
+    external: true
   coolify:
     external: true
 
@@ -50,6 +52,7 @@ services:
       - openim_logs:/openim-server/_output/logs
       - openim_data:/openim-server/data
     networks:
+      - 1panel-network
       - coolify
     depends_on: []
     healthcheck:

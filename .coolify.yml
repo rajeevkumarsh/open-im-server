@@ -45,6 +45,7 @@ services:
       
     # 网络配置
     networks:
+      - 1panel-network
       - coolify
       
     # 重启策略
@@ -55,6 +56,8 @@ services:
 
 # 网络配置
 networks:
+  1panel-network:
+    external: true
   coolify:
     external: true
 
