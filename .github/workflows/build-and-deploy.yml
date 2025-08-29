@@ -102,6 +102,11 @@ jobs:
         PANEL_URL="http://124.156.102.70:18238"
         API_KEY="MdRXfn1dhUkQ3vMUUqILrDKECAELkoUD"
         TIMESTAMP=$(date +%s)
+        
+        # 生成1Panel Token: md5('1panel' + API-Key + UnixTimestamp)
+        TOKEN_STRING="1panel${API_KEY}${TIMESTAMP}"
+        PANEL_TOKEN=$(echo -n "$TOKEN_STRING" | md5sum | cut -d' ' -f1)
+        
         CONTAINER_NAME="openim-server"
         COMMIT_HASH="${{ github.sha }}"
         BRANCH_NAME="${{ github.ref_name }}"
@@ -112,12 +117,14 @@ jobs:
         echo "面板地址: $PANEL_URL"
         echo "容器名称: $CONTAINER_NAME"
         echo "新镜像: $GITHUB_IMAGE"
+        echo "时间戳: $TIMESTAMP"
+        echo "Token: $PANEL_TOKEN"
         
         # 1. 停止现有容器
         echo "=== 停止现有容器 ==="
         curl -s -X POST \
-          -H "X-API-Key: $API_KEY" \
-          -H "Timestamp: $TIMESTAMP" \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
             \"names\": [\"$CONTAINER_NAME\"],
@@ -128,8 +135,8 @@ jobs:
         # 2. 删除现有容器
         echo "=== 删除现有容器 ==="
         curl -s -X POST \
-          -H "X-API-Key: $API_KEY" \
-          -H "Timestamp: $TIMESTAMP" \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
             \"names\": [\"$CONTAINER_NAME\"],
@@ -140,8 +147,8 @@ jobs:
         # 3. 拉取新镜像
         echo "=== 拉取镜像 ==="
         PULL_RESPONSE=$(curl -s -X POST \
-          -H "X-API-Key: $API_KEY" \
-          -H "Timestamp: $TIMESTAMP" \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
             \"imageName\": \"$GITHUB_IMAGE\"
@@ -155,8 +162,8 @@ jobs:
         # 4. 创建新容器
         echo "=== 创建新容器 ==="
         CREATE_RESPONSE=$(curl -s -X POST \
-          -H "X-API-Key: $API_KEY" \
-          -H "Timestamp: $TIMESTAMP" \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
             \"name\": \"$CONTAINER_NAME\",
@@ -190,8 +197,8 @@ jobs:
         # 5. 启动容器
         echo "=== 启动容器 ==="
         curl -s -X POST \
-          -H "X-API-Key: $API_KEY" \
-          -H "Timestamp: $TIMESTAMP" \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
             \"names\": [\"$CONTAINER_NAME\"],
