@@ -12,27 +12,33 @@ RUN apk add --no-cache git bash curl
 # 设置工作目录
 WORKDIR /openim-server
 
-# 设置 Go 环境
+# 设置 Go 环境和构建优化
 ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
+# 优化构建速度
+ENV GOMAXPROCS=0
+ENV GOCACHE=/root/.cache/go-build
 
 # 复制 Go 模块文件并下载依赖
 COPY go.mod go.sum ./
 RUN go mod download
 
+# 安装 Mage 构建工具
+RUN go install github.com/magefile/mage@v1.15.0
+
 # 复制源代码
 COPY . .
+
+# 使用临时配置跳过有问题的服务
+RUN cp start-config.temp.yml start-config.yml
 
 # 清理和更新依赖
 RUN go mod tidy
 
-# 安装 Mage 构建工具
-RUN go install github.com/magefile/mage@v1.15.0
-
-# 构建应用
+# 构建应用（跳过有问题的 crontask）
 RUN mage build
 
 # 确保二进制文件有执行权限

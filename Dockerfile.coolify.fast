@@ -1,0 +1,152 @@
+# OpenIM 快速构建 Dockerfile
+# 优化构建速度的版本
+
+# ============================================================================
+# 构建阶段
+# ============================================================================
+FROM golang:1.23-alpine AS builder
+
+# 安装必要工具（并行安装）
+RUN apk add --no-cache --update \
+    git bash curl make \
+    && rm -rf /var/cache/apk/*
+
+# 设置工作目录
+WORKDIR /openim-server
+
+# 设置 Go 环境和构建优化
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+# 构建优化
+ENV GOMAXPROCS=0
+ENV GOCACHE=/root/.cache/go-build
+ENV GOMODCACHE=/go/pkg/mod
+
+# 创建缓存目录
+RUN mkdir -p /root/.cache/go-build /go/pkg/mod
+
+# 复制 Go 模块文件并下载依赖（利用 Docker 缓存）
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
+
+# 预安装 Mage 构建工具（缓存层）
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go install github.com/magefile/mage@v1.15.0
+
+# 复制源代码（最后复制以利用层缓存）
+COPY . .
+
+# 执行快速构建（使用所有优化）
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    set -x && \
+    # 使用并行构建
+    export GOMAXPROCS=$(nproc) && \
+    # 快速构建主要服务
+    go build -ldflags="-w -s" -o _output/bin/openim-api ./cmd/openim-api && \
+    go build -ldflags="-w -s" -o _output/bin/openim-msggateway ./cmd/openim-msggateway && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-user ./cmd/openim-rpc/openim-rpc-user && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-auth ./cmd/openim-rpc/openim-rpc-auth && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-conversation ./cmd/openim-rpc/openim-rpc-conversation && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-friend ./cmd/openim-rpc/openim-rpc-friend && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-group ./cmd/openim-rpc/openim-rpc-group && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-msg ./cmd/openim-rpc/openim-rpc-msg && \
+    go build -ldflags="-w -s" -o _output/bin/openim-rpc-third ./cmd/openim-rpc/openim-rpc-third && \
+    go build -ldflags="-w -s" -o _output/bin/openim-push ./cmd/openim-push && \
+    go build -ldflags="-w -s" -o _output/bin/openim-msgtransfer ./cmd/openim-msgtransfer && \
+    go build -ldflags="-w -s" -o _output/bin/openim-crontask ./cmd/openim-crontask && \
+    # 构建工具
+    go build -ldflags="-w -s" -o _output/bin/check-component ./tools/check-component && \
+    go build -ldflags="-w -s" -o _output/bin/check-free-memory ./tools/check-free-memory && \
+    go build -ldflags="-w -s" -o _output/bin/seq ./tools/seq
+
+# 确保二进制文件有执行权限
+RUN chmod +x _output/bin/*
+
+# ============================================================================
+# 运行阶段（最小化镜像）
+# ============================================================================
+FROM alpine:3.19
+
+# 安装运行时依赖
+RUN apk add --no-cache --update \
+    bash curl tzdata ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 创建非 root 用户
+RUN addgroup -S openim && adduser -S openim -G openim
+
+# 设置工作目录
+ENV SERVER_DIR=/openim-server
+WORKDIR $SERVER_DIR
+
+# 从构建阶段复制文件
+COPY --from=builder --chown=openim:openim /openim-server/_output $SERVER_DIR/_output
+COPY --from=builder --chown=openim:openim /openim-server/config $SERVER_DIR/config
+COPY --from=builder --chown=openim:openim /openim-server/start-config.yml $SERVER_DIR/
+
+# 创建必要目录
+RUN mkdir -p \
+    $SERVER_DIR/_output/logs \
+    $SERVER_DIR/data \
+    && chown -R openim:openim $SERVER_DIR
+
+# 切换到非 root 用户
+USER openim
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:10002/api/get_server_api_map || exit 1
+
+# 暴露端口
+EXPOSE 10002 10001
+
+# 启动脚本
+COPY --chown=openim:openim <<'EOF' /start.sh
+#!/bin/bash
+set -e
+
+# 启动核心服务
+echo "Starting OpenIM services..."
+
+# 启动 RPC 服务
+./_output/bin/openim-rpc-user &
+./_output/bin/openim-rpc-auth &
+./_output/bin/openim-rpc-conversation &
+./_output/bin/openim-rpc-friend &
+./_output/bin/openim-rpc-group &
+./_output/bin/openim-rpc-msg &
+./_output/bin/openim-rpc-third &
+
+sleep 5
+
+# 启动网关和传输服务
+./_output/bin/openim-msggateway &
+./_output/bin/openim-msgtransfer &
+./_output/bin/openim-push &
+
+sleep 5
+
+# 启动 API 服务
+./_output/bin/openim-api &
+
+# 启动定时任务
+./_output/bin/openim-crontask &
+
+# 保持容器运行
+wait
+EOF
+
+RUN chmod +x /start.sh
+
+ENTRYPOINT ["/start.sh"]

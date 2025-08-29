@@ -10,7 +10,7 @@ services:
   openim-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.coolify
     container_name: openim-server
     restart: unless-stopped
     ports:
