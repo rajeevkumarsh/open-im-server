@@ -180,14 +180,25 @@ jobs:
             ],
             \"env\": [
               \"TZ=Asia/Shanghai\",
-              \"MONGO_URI=mongodb://openIM:openIM123@mongo:27017/openim_v3?maxPoolSize=100\",
-              \"REDIS_ADDRESS=redis:6379\",
-              \"REDIS_PASSWORD=openIM123\",
-              \"KAFKA_ADDRESS=kafka:9092\",
-              \"MINIO_ENDPOINT=http://minio:9000\",
-              \"MINIO_ACCESS_KEY=root\",
-              \"MINIO_SECRET_KEY=openIM123\",
-              \"OPENIM_SECRET=openIM123\"
+              \"IMENV_MONGODB_ADDRESS=mongo:27017\",
+              \"IMENV_MONGODB_USERNAME=openIM\",
+              \"IMENV_MONGODB_PASSWORD=openIM123\",
+              \"IMENV_KAFKA_ADDRESS=kafka:9092\",
+              \"IMENV_KAFKA_USERNAME=\",
+              \"IMENV_KAFKA_PASSWORD=\",
+              \"IMENV_DISCOVERY_ETCD_ADDRESS=etcd:2379\",
+              \"IMENV_DISCOVERY_ETCD_USERNAME=\",
+              \"IMENV_DISCOVERY_ETCD_PASSWORD=\",
+              \"IMENV_REDIS_ADDRESS=redis:6379\",
+              \"IMENV_REDIS_PASSWORD=openIM123\",
+              \"IMENV_MINIO_INTERNALADDRESS=http://minio:9000\",
+              \"IMENV_MINIO_EXTERNALADDRESS=http://124.156.102.70:19000\",
+              \"IMENV_MINIO_ACCESSKEYID=root\",
+              \"IMENV_MINIO_SECRETACCESSKEY=openIM123\",
+              \"IMENV_SHARE_SECRET=openIM123\",
+              \"IMENV_LOG_ISSTDOUT=false\",
+              \"IMENV_LOG_REMAINLOGLEVEL=6\",
+              \"IMENV_OPENIM_API_PROMETHEUS_GRAFANAURL=http://124.156.102.70:13000\"
             ]
           }" \
           "$PANEL_URL/api/v2/containers")
