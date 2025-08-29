@@ -1,0 +1,64 @@
+version: '3.8'
+
+networks:
+  coolify:
+    external: true
+
+services:
+  openim-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openim-server
+    restart: unless-stopped
+    ports:
+      - "10002:10002"    # API端口
+      - "10001:10001"    # WebSocket网关端口  
+    environment:
+      # OpenIM 核心配置
+      - OPENIM_SECRET=openIM123
+      - OPENIM_ADMIN_USERID=imAdmin
+      - OPENIM_ADMIN_NICKNAME=superAdmin
+      
+      # 数据库配置 - 使用外部服务
+      - MONGO_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}
+      - REDIS_ADDRESS=${REDIS_HOST}:${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      
+      # 消息队列配置
+      - KAFKA_ADDR=${KAFKA_HOST}:${KAFKA_PORT}
+      - KAFKA_USERNAME=${KAFKA_USERNAME:-}
+      - KAFKA_PASSWORD=${KAFKA_PASSWORD:-}
+      
+      # 服务发现配置
+      - ETCD_ADDR=${ETCD_HOST}:${ETCD_PORT}
+      - ETCD_USERNAME=${ETCD_USERNAME:-}
+      - ETCD_PASSWORD=${ETCD_PASSWORD:-}
+      
+      # 对象存储配置
+      - MINIO_ENDPOINT=${MINIO_HOST}:${MINIO_PORT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-openim}
+      
+      # 服务配置
+      - SERVER_IP=${SERVER_IP:-0.0.0.0}
+      - API_PORTS=10002
+      - PROMETHEUS_ENABLE=true
+      
+    volumes:
+      - openim_logs:/openim-server/_output/logs
+      - openim_data:/openim-server/data
+    networks:
+      - coolify
+    depends_on: []
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:10002/api/get_server_api_map || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  openim_logs:
+  openim_data:

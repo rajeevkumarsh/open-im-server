@@ -1,0 +1,91 @@
+# OpenIM Coolify 优化 Dockerfile
+# 针对 Coolify 环境进行优化的多阶段构建
+
+# ============================================================================
+# 构建阶段
+# ============================================================================
+FROM golang:1.22-alpine AS builder
+
+# 安装必要工具
+RUN apk add --no-cache git bash curl
+
+# 设置工作目录
+WORKDIR /openim-server
+
+# 设置 Go 环境
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+
+# 复制 Go 模块文件并下载依赖
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 复制源代码
+COPY . .
+
+# 安装 Mage 构建工具
+RUN go install github.com/magefile/mage@v1.15.0
+
+# 构建应用
+RUN mage build
+
+# 确保二进制文件有执行权限
+RUN chmod +x _output/bin/*
+
+# ============================================================================
+# 运行阶段
+# ============================================================================
+FROM alpine:3.19
+
+# 安装运行时依赖
+RUN apk add --no-cache \
+    bash \
+    curl \
+    tzdata \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 创建非 root 用户
+RUN addgroup -S openim && adduser -S openim -G openim
+
+# 设置工作目录
+ENV SERVER_DIR=/openim-server
+WORKDIR $SERVER_DIR
+
+# 从构建阶段复制文件
+COPY --from=builder --chown=openim:openim /openim-server/_output $SERVER_DIR/_output
+COPY --from=builder --chown=openim:openim /openim-server/config $SERVER_DIR/config
+COPY --from=builder --chown=openim:openim /openim-server/start-config.yml $SERVER_DIR/
+COPY --from=builder --chown=openim:openim /openim-server/go.mod $SERVER_DIR/
+COPY --from=builder --chown=openim:openim /openim-server/go.sum $SERVER_DIR/
+COPY --from=builder --chown=openim:openim /openim-server/magefile*.go $SERVER_DIR/
+COPY --from=builder /go/bin/mage /usr/local/bin/mage
+
+# 创建必要目录
+RUN mkdir -p \
+    $SERVER_DIR/_output/logs \
+    $SERVER_DIR/data \
+    && chown -R openim:openim $SERVER_DIR
+
+# 安装运行时 Go 依赖
+RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.1
+
+# 切换到非 root 用户
+USER openim
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:10002/api/get_server_api_map || exit 1
+
+# 暴露端口
+EXPOSE 10002 10001
+
+# 启动命令
+ENTRYPOINT ["sh", "-c", "mage start && tail -f /dev/null"]

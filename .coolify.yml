@@ -1,0 +1,66 @@
+# Coolify 应用配置文件
+# 这个文件定义了 OpenIM 在 Coolify 中的部署配置
+
+version: "1.0"
+
+services:
+  openim:
+    # 构建配置
+    build:
+      dockerfile: Dockerfile.coolify
+      context: .
+      
+    # 运行时配置
+    ports:
+      - "10002:10002"  # API 端口
+      - "10001:10001"  # WebSocket 网关端口
+      
+    # 环境变量
+    environment:
+      - SERVER_IP=0.0.0.0
+      - API_PORTS=10002
+      - WEBSOCKET_PORTS=10001
+      
+    # 健康检查
+    healthcheck:
+      path: "/api/get_server_api_map"
+      port: 10002
+      interval: 30
+      timeout: 10
+      retries: 3
+      
+    # 资源限制
+    resources:
+      limits:
+        memory: "2048M"
+        cpu: "1000m"
+      reservations:
+        memory: "512M"
+        cpu: "250m"
+        
+    # 存储配置
+    volumes:
+      - openim_logs:/openim-server/_output/logs
+      - openim_data:/openim-server/data
+      
+    # 网络配置
+    networks:
+      - coolify
+      
+    # 重启策略
+    restart: unless-stopped
+    
+    # 依赖检查
+    depends_on: []
+
+# 网络配置
+networks:
+  coolify:
+    external: true
+
+# 存储卷配置
+volumes:
+  openim_logs:
+    driver: local
+  openim_data:
+    driver: local
