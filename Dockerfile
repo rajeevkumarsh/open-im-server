@@ -18,7 +18,8 @@ RUN go mod download
 # Install Mage to use for building the application
 RUN go install github.com/magefile/mage@v1.15.0
 
-# Optionally build your application if needed
+# Build application for Linux AMD64 platform
+ENV GOOS=linux GOARCH=amd64
 RUN mage build
 
 # Using Alpine Linux with Go environment for the final image
@@ -43,7 +44,29 @@ COPY --from=builder $SERVER_DIR/start-config.yml $SERVER_DIR/
 COPY --from=builder $SERVER_DIR/go.mod $SERVER_DIR/
 COPY --from=builder $SERVER_DIR/go.sum $SERVER_DIR/
 
-RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.1
+RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.11
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+cd /openim-server\n\
+\n\
+# Start OpenIM services in background\n\
+nohup ./_output/bin/openim-api --config /openim/config > /openim/logs/openim-api.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-user --config /openim/config > /openim/logs/openim-rpc-user.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-friend --config /openim/config > /openim/logs/openim-rpc-friend.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-msg --config /openim/config > /openim/logs/openim-rpc-msg.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-conversation --config /openim/config > /openim/logs/openim-rpc-conversation.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-group --config /openim/config > /openim/logs/openim-rpc-group.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-auth --config /openim/config > /openim/logs/openim-rpc-auth.log 2>&1 &\n\
+nohup ./_output/bin/openim-rpc-third --config /openim/config > /openim/logs/openim-rpc-third.log 2>&1 &\n\
+nohup ./_output/bin/openim-push --config /openim/config > /openim/logs/openim-push.log 2>&1 &\n\
+nohup ./_output/bin/openim-msgtransfer --config /openim/config > /openim/logs/openim-msgtransfer.log 2>&1 &\n\
+nohup ./_output/bin/openim-msggateway --config /openim/config > /openim/logs/openim-msggateway.log 2>&1 &\n\
+nohup ./_output/bin/openim-crontask --config /openim/config > /openim/logs/openim-crontask.log 2>&1 &\n\
+\n\
+# Keep container running\n\
+tail -f /dev/null\n\
+' > /usr/local/bin/start-openim.sh && chmod +x /usr/local/bin/start-openim.sh
 
 # Set the command to run when the container starts
-ENTRYPOINT ["sh", "-c", "mage start && tail -f /dev/null"]
+ENTRYPOINT ["/usr/local/bin/start-openim.sh"]
