@@ -64,8 +64,8 @@ check_1panel_containers() {
     local containers=(
         "${MONGO_HOST:-1Panel-mongodb-iSy5}"
         "${REDIS_HOST:-1Panel-redis-IVlq}"
-        "${KAFKA_HOST:-1Panel-kafka-YgzS}"
-        "${ETCD_HOST:-1Panel-etcd-FdgX}"
+        "${KAFKA_HOST:-kafka}"
+        "${ETCD_HOST:-etcd}"
         "${MINIO_HOST:-1Panel-minio-DShb}"
     )
     
@@ -120,8 +120,8 @@ test_network_connectivity() {
         local services=(
             "${MONGO_HOST:-1Panel-mongodb-iSy5}:${MONGO_PORT:-27017}"
             "${REDIS_HOST:-1Panel-redis-IVlq}:${REDIS_PORT:-6379}"
-            "${KAFKA_HOST:-1Panel-kafka-YgzS}:${KAFKA_PORT:-9092}"
-            "${ETCD_HOST:-1Panel-etcd-FdgX}:${ETCD_PORT:-2379}"
+            "${KAFKA_HOST:kafka}:${KAFKA_PORT:-9092}"
+            "${ETCD_HOST:etcd}:${ETCD_PORT:-2379}"
             "${MINIO_HOST:-1Panel-minio-DShb}:${MINIO_PORT:-9000}"
         )
         
