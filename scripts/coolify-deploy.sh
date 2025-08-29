@@ -124,17 +124,34 @@ test_external_services() {
         return 0
     fi
     
-    if ! docker network ls | grep -q "1panel-network"; then
-        log_warning "1panel-network 网络不存在，跳过网络连接测试"
-        log_warning "请确保在 Coolify 环境中可以访问 1panel-network"
+    # 检查必需的网络
+    local required_networks=("1panel-network" "openim-docker_openim")
+    local available_networks=()
+    
+    for network in "${required_networks[@]}"; do
+        if docker network ls | grep -q "$network"; then
+            available_networks+=("$network")
+            log_success "$network 网络存在"
+        else
+            log_warning "$network 网络不存在"
+        fi
+    done
+    
+    if [ ${#available_networks[@]} -eq 0 ]; then
+        log_warning "没有找到必需的 Docker 网络，跳过网络连接测试"
+        log_warning "请确保 1panel-network 或 openim-docker_openim 网络可用"
         return 0
     fi
+    
+    # 使用第一个可用网络进行测试
+    local test_network="${available_networks[0]}"
+    log_info "使用 $test_network 网络进行连接测试"
     
     local test_container="openim-connectivity-test-$$"
     local failed_services=()
     
     log_info "启动测试容器..."
-    if ! docker run -d --name "$test_container" --network 1panel-network alpine:latest sleep 120 >/dev/null 2>&1; then
+    if ! docker run -d --name "$test_container" --network "$test_network" alpine:latest sleep 120 >/dev/null 2>&1; then
         log_warning "无法启动测试容器，跳过网络连接测试"
         log_warning "可能的原因："
         log_warning "  - 无权限访问 1panel-network"
