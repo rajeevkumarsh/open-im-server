@@ -93,23 +93,43 @@ fi
 
 echo "=== Services Started ==="
 
-# 健康检查循环
-echo "=== Starting Health Check Loop ==="
-while true; do
-    sleep 30
+# 根据环境选择运行模式
+if [ "$ENVIRONMENT" = "local" ]; then
+    echo "=== Local Development Mode ==="
+    echo "✅ Services started successfully"
+    echo "💡 Local testing tips:"
+    echo "   - Check logs in _output/logs/"
+    echo "   - API endpoint: http://localhost:10002"
+    echo "   - Use 'ps aux | grep openim' to check processes"
+    echo "   - Use 'pkill -f openim' to stop all services"
+    echo ""
+    echo "🎉 OpenIM Server is running locally!"
+    echo "Press Ctrl+C to stop monitoring (services will continue running)"
     
-    # 检查关键进程
-    if ! pgrep -f "openim-api" > /dev/null; then
-        echo "⚠️  openim-api process not found"
-    fi
+    # 本地模式：显示进程状态后退出，让服务在后台运行
+    sleep 5
+    echo "=== Current Process Status ==="
+    ps aux | grep openim | grep -v grep || echo "No openim processes found"
     
-    if ! pgrep -f "openim-rpc" > /dev/null; then
-        echo "⚠️  openim-rpc processes not found"
-    fi
-    
-    # 每5分钟输出一次状态
-    if [ $(($(date +%s) % 300)) -eq 0 ]; then
-        echo "=== Service Status $(date) ==="
-        ps aux | grep openim | grep -v grep || echo "No openim processes found"
-    fi
-done
+else
+    echo "=== Container Health Check Loop ==="
+    # 容器模式：持续监控循环
+    while true; do
+        sleep 30
+        
+        # 检查关键进程
+        if ! pgrep -f "openim-api" > /dev/null; then
+            echo "⚠️  openim-api process not found"
+        fi
+        
+        if ! pgrep -f "openim-rpc" > /dev/null; then
+            echo "⚠️  openim-rpc processes not found"
+        fi
+        
+        # 每5分钟输出一次状态
+        if [ $(($(date +%s) % 300)) -eq 0 ]; then
+            echo "=== Service Status $(date) ==="
+            ps aux | grep openim | grep -v grep || echo "No openim processes found"
+        fi
+    done
+fi
