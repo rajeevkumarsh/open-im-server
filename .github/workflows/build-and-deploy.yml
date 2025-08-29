@@ -199,11 +199,11 @@ jobs:
               \"IMENV_REDIS_ADDRESS=redis:6379\",
               \"IMENV_REDIS_PASSWORD=openIM123\",
               \"IMENV_MINIO_INTERNALADDRESS=http://minio:9000\",
-              \"IMENV_MINIO_EXTERNALADDRESS=http://124.156.102.70:19000\",
+              \"IMENV_MINIO_EXTERNALADDRESS=https://oo.guguim.app\",
               \"IMENV_MINIO_ACCESSKEYID=root\",
               \"IMENV_MINIO_SECRETACCESSKEY=openIM123\",
               \"IMENV_SHARE_SECRET=openIM123\",
-              \"IMENV_LOG_ISSTDOUT=false\",
+              \"IMENV_LOG_ISSTDOUT=true\",
               \"IMENV_LOG_REMAINLOGLEVEL=6\",
               \"IMENV_OPENIM_API_PROMETHEUS_GRAFANAURL=http://124.156.102.70:13000\"
             ]
