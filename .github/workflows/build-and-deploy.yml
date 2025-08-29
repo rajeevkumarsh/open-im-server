@@ -88,6 +88,18 @@ jobs:
             }]
           }"
 
+    - name: Debug SSH connection info
+      if: github.ref == 'refs/heads/develop_build'
+      run: |
+        echo "=== SSH 连接信息调试 ==="
+        echo "HOST: ${{ secrets.HOST }}"
+        echo "USERNAME: ${{ secrets.USERNAME }}"
+        echo "PORT: ${{ secrets.PORT || 22 }}"
+        echo "DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}"
+        echo "私钥长度: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -c)"
+        echo "私钥开头: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | head -1)"
+        echo "私钥结尾: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | tail -1)"
+
     - name: Deploy to server via SSH
       if: github.ref == 'refs/heads/develop_build'
       uses: appleboy/ssh-action@v1.0.3
@@ -96,19 +108,59 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: ${{ secrets.PORT || 22 }}
+        timeout: 60s
+        command_timeout: 300s
+        debug: true
         script: |
+          echo "=== SSH 连接成功 ==="
+          whoami
+          pwd
+          echo "当前时间: $(date)"
+          
+          # 检查项目目录
+          PROJECT_DIR="${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}"
+          echo "项目目录: $PROJECT_DIR"
+          
+          if [ ! -d "$PROJECT_DIR" ]; then
+            echo "❌ 项目目录不存在: $PROJECT_DIR"
+            echo "当前目录内容:"
+            ls -la
+            exit 1
+          fi
+          
           # 进入项目目录
-          cd ${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}
+          cd "$PROJECT_DIR"
+          echo "✅ 成功进入项目目录"
+          
+          # 检查 Git 状态
+          echo "=== Git 状态检查 ==="
+          git status --porcelain
+          git branch -a
+          git remote -v
           
           # 更新代码到最新版本
-          git fetch origin
+          echo "=== 更新代码 ==="
+          git fetch origin --prune
+          echo "当前分支: $(git branch --show-current)"
+          echo "目标分支: ${{ github.ref_name }}"
+          
           git reset --hard origin/${{ github.ref_name }}
+          echo "代码更新完成"
+          
+          # 检查部署脚本
+          echo "=== 检查部署脚本 ==="
+          if [ ! -f "deploy.sh" ]; then
+            echo "❌ deploy.sh 文件不存在"
+            ls -la
+            exit 1
+          fi
           
           # 运行部署脚本
+          echo "=== 运行部署脚本 ==="
           chmod +x deploy.sh
           ./deploy.sh
           
-          echo "部署完成: ${{ github.sha }}"
+          echo "✅ 部署完成: ${{ github.sha }}"
 
     - name: Notify Discord - Build Failed
       if: failure()
