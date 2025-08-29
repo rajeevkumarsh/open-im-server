@@ -13,11 +13,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    
-  deploy:
-    needs: build-and-push
-    runs-on: self-hosted  # 使用自托管的 runner
-    if: github.ref == 'refs/heads/develop_build'
+    permissions:
+      contents: read
+      packages: write
 
     steps:
     - name: Checkout repository
@@ -89,6 +87,43 @@ jobs:
               ]
             }]
           }"
+    
+    - name: Notify Discord - Build Failed
+      if: failure()
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"❌ OpenIM Server - 构建失败\",
+              \"description\": \"Docker 镜像构建过程中出现错误\",
+              \"color\": 15158332,
+              \"fields\": [
+                {
+                  \"name\": \"分支\",
+                  \"value\": \"\`${{ github.ref_name }}\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"提交\",
+                  \"value\": \"\`${{ github.sha }}\`\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"构建者\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
+                }
+              ]
+            }]
+          }"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop_build'
+
+    steps:
 
     - name: Deploy via Portainer API
       if: github.ref == 'refs/heads/develop_build'
