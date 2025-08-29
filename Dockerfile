@@ -18,7 +18,8 @@ RUN go mod download
 # Install Mage to use for building the application
 RUN go install github.com/magefile/mage@v1.15.0
 
-# Optionally build your application if needed
+# Build application for Linux AMD64 platform
+ENV GOOS=linux GOARCH=amd64
 RUN mage build
 
 # Using Alpine Linux with Go environment for the final image
