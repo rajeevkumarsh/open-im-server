@@ -32,13 +32,10 @@ RUN go install github.com/magefile/mage@v1.15.0
 # 复制源代码
 COPY . .
 
-# 使用临时配置跳过有问题的服务
-RUN cp start-config.temp.yml start-config.yml
-
 # 清理和更新依赖
 RUN go mod tidy
 
-# 构建应用（跳过有问题的 crontask）
+# 构建应用
 RUN mage build
 
 # 确保二进制文件有执行权限
