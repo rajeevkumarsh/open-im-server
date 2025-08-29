@@ -170,6 +170,7 @@ jobs:
             \"image\": \"$GITHUB_IMAGE\",
             \"restartPolicy\": \"always\",
             \"network\": \"openim-docker_openim\",
+            \"init\": true,
             \"exposedPorts\": [
               {\"hostPort\": \"10001\", \"containerPort\": \"10001\", \"protocol\": \"tcp\"},
               {\"hostPort\": \"10002\", \"containerPort\": \"10002\", \"protocol\": \"tcp\"}
@@ -178,6 +179,12 @@ jobs:
               {\"sourceDir\": \"/home/ubuntu/openim-docker/config\", \"containerDir\": \"/openim/config\", \"mode\": \"ro\", \"type\": \"bind\"},
               {\"sourceDir\": \"/home/ubuntu/openim-docker/_output/logs\", \"containerDir\": \"/openim/logs\", \"mode\": \"rw\", \"type\": \"bind\"}
             ],
+            \"healthCheck\": {
+              \"test\": [\"CMD\", \"sh\", \"-c\", \"mage check\"],
+              \"interval\": 5,
+              \"timeout\": 60,
+              \"retries\": 10
+            },
             \"env\": [
               \"TZ=Asia/Shanghai\",
               \"IMENV_MONGODB_ADDRESS=mongo:27017\",
