@@ -96,9 +96,7 @@ jobs:
         echo "USERNAME: ${{ secrets.USERNAME }}"
         echo "PORT: ${{ secrets.PORT || 22 }}"
         echo "DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}"
-        echo "私钥长度: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -c)"
-        echo "私钥开头: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | head -1)"
-        echo "私钥结尾: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | tail -1)"
+        echo "认证方式: 密码登录"
 
     - name: Deploy to server via SSH
       if: github.ref == 'refs/heads/develop_build'
@@ -106,7 +104,7 @@ jobs:
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        password: ${{ secrets.SSH_PASSWORD }}
         port: ${{ secrets.PORT || 22 }}
         timeout: 60s
         command_timeout: 300s
