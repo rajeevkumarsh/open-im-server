@@ -87,36 +87,6 @@ jobs:
               ]
             }]
           }"
-    
-    - name: Notify Discord - Build Failed
-      if: failure()
-      run: |
-        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"embeds\": [{
-              \"title\": \"❌ OpenIM Server - 构建失败\",
-              \"description\": \"Docker 镜像构建过程中出现错误\",
-              \"color\": 15158332,
-              \"fields\": [
-                {
-                  \"name\": \"分支\",
-                  \"value\": \"\`${{ github.ref_name }}\`\",
-                  \"inline\": true
-                },
-                {
-                  \"name\": \"提交\",
-                  \"value\": \"\`${{ github.sha }}\`\",
-                  \"inline\": false
-                },
-                {
-                  \"name\": \"构建者\",
-                  \"value\": \"${{ github.actor }}\",
-                  \"inline\": true
-                }
-              ]
-            }]
-          }"
 
   deploy:
     needs: build-and-push
@@ -129,8 +99,8 @@ jobs:
       if: github.ref == 'refs/heads/develop_build'
       run: |
         # 设置变量
-        PORTAINER_URL="http://129.226.214.22:9100"
-        PORTAINER_TOKEN="ptr_99YaZP1PKDwOKXQe69xY97A7v6vWxvW5nYknGULibdw="
+        PORTAINER_URL="https://docker.guguim.app"
+        PORTAINER_TOKEN="ptr_oVGV9nWLRCFDf2I3OTOSu+AqC7oZwgvbvQd7OD+8VpQ="
         CONTAINER_NAME="openim-server"
         COMMIT_HASH="${{ github.sha }}"
         BRANCH_NAME="${{ github.ref_name }}"
