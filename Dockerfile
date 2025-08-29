@@ -18,8 +18,7 @@ RUN go mod download
 # Install Mage to use for building the application
 RUN go install github.com/magefile/mage@v1.15.0
 
-# Build application for Linux AMD64 platform
-ENV GOOS=linux GOARCH=amd64
+# Optionally build your application if needed
 RUN mage build
 
 # Using Alpine Linux with Go environment for the final image
@@ -44,7 +43,7 @@ COPY --from=builder $SERVER_DIR/start-config.yml $SERVER_DIR/
 COPY --from=builder $SERVER_DIR/go.mod $SERVER_DIR/
 COPY --from=builder $SERVER_DIR/go.sum $SERVER_DIR/
 
-RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.11
+RUN go get github.com/openimsdk/gomake@v0.0.15-alpha.1
 
 # Set the command to run when the container starts
 ENTRYPOINT ["sh", "-c", "mage start && tail -f /dev/null"]
