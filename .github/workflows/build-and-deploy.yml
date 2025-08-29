@@ -95,91 +95,83 @@ jobs:
 
     steps:
 
-    - name: Deploy via Portainer API
+    - name: Deploy via 1Panel API
       if: github.ref == 'refs/heads/develop_build'
       run: |
         # 设置变量
-        PORTAINER_URL="https://docker.guguim.app"
-        PORTAINER_TOKEN="ptr_oVGV9nWLRCFDf2I3OTOSu+AqC7oZwgvbvQd7OD+8VpQ="
+        PANEL_URL="http://124.156.102.70:18238"
+        API_KEY="MdRXfn1dhUkQ3vMUUqILrDKECAELkoUD"
+        TIMESTAMP=$(date +%s)
         CONTAINER_NAME="openim-server"
         COMMIT_HASH="${{ github.sha }}"
         BRANCH_NAME="${{ github.ref_name }}"
         GITHUB_IMAGE="ghcr.io/${{ github.repository }}:${BRANCH_NAME}-${COMMIT_HASH:0:7}"
         DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"
         
-        echo "=== Portainer API 部署 ==="
-        echo "Portainer URL: $PORTAINER_URL"
+        echo "=== 1Panel API 部署 ==="
+        echo "面板地址: $PANEL_URL"
         echo "容器名称: $CONTAINER_NAME"
         echo "新镜像: $GITHUB_IMAGE"
         
-        # 1. 获取环境列表
-        echo "=== 获取环境信息 ==="
-        ENVIRONMENTS=$(curl -s \
-          -H "X-API-Key: $PORTAINER_TOKEN" \
-          "$PORTAINER_URL/api/endpoints")
+        # 1. 停止现有容器
+        echo "=== 停止现有容器 ==="
+        curl -s -X POST \
+          -H "X-API-Key: $API_KEY" \
+          -H "Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"stop\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate" || echo "容器可能不存在或已停止"
         
-        ENDPOINT_ID=$(echo "$ENVIRONMENTS" | jq -r '.[0].Id')
-        echo "使用环境 ID: $ENDPOINT_ID"
+        # 2. 删除现有容器
+        echo "=== 删除现有容器 ==="
+        curl -s -X POST \
+          -H "X-API-Key: $API_KEY" \
+          -H "Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"remove\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate" || echo "容器可能不存在"
         
-        # 2. 查找现有容器
-        echo "=== 查找现有容器 ==="
-        CONTAINERS=$(curl -s \
-          -H "X-API-Key: $PORTAINER_TOKEN" \
-          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/json?all=true")
-        
-        CONTAINER_ID=$(echo "$CONTAINERS" | jq -r ".[] | select(.Names[] | contains(\"$CONTAINER_NAME\")) | .Id")
-        
-        if [ -n "$CONTAINER_ID" ]; then
-          echo "找到现有容器: $CONTAINER_ID"
-          
-          # 3. 停止并删除现有容器
-          echo "=== 停止现有容器 ==="
-          curl -s -X POST \
-            -H "X-API-Key: $PORTAINER_TOKEN" \
-            "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$CONTAINER_ID/stop"
-          
-          echo "=== 删除现有容器 ==="
-          curl -s -X DELETE \
-            -H "X-API-Key: $PORTAINER_TOKEN" \
-            "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$CONTAINER_ID"
-        else
-          echo "未找到现有容器，将创建新容器"
-        fi
-        
-        # 4. 拉取新镜像
-        echo "=== 拉取新镜像 ==="
-        PULL_URL="$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/create?fromImage=$(echo "$GITHUB_IMAGE" | sed 's/:/%3A/g' | sed 's|/|%2F|g')"
-        echo "拉取 URL: $PULL_URL"
-        
+        # 3. 拉取新镜像
+        echo "=== 拉取镜像 ==="
         PULL_RESPONSE=$(curl -s -X POST \
-          -H "X-API-Key: $PORTAINER_TOKEN" \
-          "$PULL_URL")
-        echo "拉取响应: $PULL_RESPONSE"
+          -H "X-API-Key: $API_KEY" \
+          -H "Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"imageName\": \"$GITHUB_IMAGE\"
+          }" \
+          "$PANEL_URL/api/v2/containers/image/pull")
+        echo "拉取结果: $PULL_RESPONSE"
         
         # 等待镜像拉取完成
         sleep 10
         
-        # 5. 创建新容器
+        # 4. 创建新容器
         echo "=== 创建新容器 ==="
         CREATE_RESPONSE=$(curl -s -X POST \
-          -H "X-API-Key: $PORTAINER_TOKEN" \
+          -H "X-API-Key: $API_KEY" \
+          -H "Timestamp: $TIMESTAMP" \
           -H "Content-Type: application/json" \
           -d "{
-            \"Image\": \"$GITHUB_IMAGE\",
             \"name\": \"$CONTAINER_NAME\",
-            \"HostConfig\": {
-              \"RestartPolicy\": {\"Name\": \"always\"},
-              \"NetworkMode\": \"openim-docker_openim\",
-              \"PortBindings\": {
-                \"10001/tcp\": [{\"HostPort\": \"10001\"}],
-                \"10002/tcp\": [{\"HostPort\": \"10002\"}]
-              },
-              \"Binds\": [
-                \"/home/ubuntu/openim-docker/config:/openim/config:ro\",
-                \"/home/ubuntu/openim-docker/_output/logs:/openim/logs\"
-              ]
-            },
-            \"Env\": [
+            \"image\": \"$GITHUB_IMAGE\",
+            \"restart\": \"always\",
+            \"networkMode\": \"openim-docker_openim\",
+            \"portBindings\": [
+              {\"hostPort\": \"10001\", \"containerPort\": \"10001\"},
+              {\"hostPort\": \"10002\", \"containerPort\": \"10002\"}
+            ],
+            \"volumes\": [
+              {\"host\": \"/home/ubuntu/openim-docker/config\", \"container\": \"/openim/config\", \"mode\": \"ro\"},
+              {\"host\": \"/home/ubuntu/openim-docker/_output/logs\", \"container\": \"/openim/logs\"}
+            ],
+            \"env\": [
               \"TZ=Asia/Shanghai\",
               \"MONGO_URI=mongodb://openIM:openIM123@mongo:27017/openim_v3?maxPoolSize=100\",
               \"REDIS_ADDRESS=redis:6379\",
@@ -191,25 +183,30 @@ jobs:
               \"OPENIM_SECRET=openIM123\"
             ]
           }" \
-          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/create")
+          "$PANEL_URL/api/v2/containers")
         
-        NEW_CONTAINER_ID=$(echo "$CREATE_RESPONSE" | jq -r '.Id')
-        echo "新容器 ID: $NEW_CONTAINER_ID"
+        echo "创建结果: $CREATE_RESPONSE"
         
-        # 6. 启动新容器
-        echo "=== 启动新容器 ==="
+        # 5. 启动容器
+        echo "=== 启动容器 ==="
         curl -s -X POST \
-          -H "X-API-Key: $PORTAINER_TOKEN" \
-          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$NEW_CONTAINER_ID/start"
+          -H "X-API-Key: $API_KEY" \
+          -H "Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"start\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate"
         
-        # 7. 等待容器启动
+        # 6. 等待容器启动
         echo "=== 等待容器启动 ==="
         sleep 15
         
-        # 8. 健康检查
+        # 7. 健康检查
         echo "=== 健康检查 ==="
         for i in {1..30}; do
-          if curl -f http://129.226.214.22:10002/api/get_server_api_map &>/dev/null; then
+          if curl -f http://124.156.102.70:10002/api/get_server_api_map &>/dev/null; then
             echo "✅ OpenIM Server 启动成功"
             
             # 发送部署成功通知到 Discord
@@ -217,17 +214,17 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{
                 \"embeds\": [{
-                  \"title\": \"🎉 OpenIM Server - 部署成功 (Portainer API)\",
-                  \"description\": \"通过 Portainer API 部署完成，服务正常运行\",
+                  \"title\": \"🎉 OpenIM Server - 部署成功 (1Panel API)\",
+                  \"description\": \"通过1Panel API部署完成，服务正常运行\",
                   \"color\": 3066993,
                   \"fields\": [
                     {\"name\": \"分支\", \"value\": \"$BRANCH_NAME\", \"inline\": true},
                     {\"name\": \"提交哈希\", \"value\": \"${COMMIT_HASH:0:7}\", \"inline\": true},
                     {\"name\": \"运行镜像\", \"value\": \"$GITHUB_IMAGE\", \"inline\": false},
-                    {\"name\": \"部署方式\", \"value\": \"Portainer API\", \"inline\": true}
+                    {\"name\": \"部署方式\", \"value\": \"1Panel API\", \"inline\": true}
                   ]
                 }]
-              }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
+              }" &>/dev/null || echo "⚠️ Discord 通知发送失败"
             
             exit 0
           fi
@@ -240,7 +237,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{
                 \"embeds\": [{
-                  \"title\": \"❌ OpenIM Server - 部署失败 (Portainer API)\",
+                  \"title\": \"❌ OpenIM Server - 部署失败 (1Panel API)\",
                   \"description\": \"健康检查超时，服务启动失败\",
                   \"color\": 15158332,
                   \"fields\": [
@@ -249,7 +246,7 @@ jobs:
                     {\"name\": \"镜像\", \"value\": \"$GITHUB_IMAGE\", \"inline\": false}
                   ]
                 }]
-              }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
+              }" &>/dev/null || echo "⚠️ Discord 通知发送失败"
             
             exit 1
           fi
