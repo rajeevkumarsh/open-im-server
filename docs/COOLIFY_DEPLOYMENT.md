@@ -15,6 +15,7 @@
 ### Coolify 环境
 - Coolify v4.0+ 已安装配置
 - Docker 支持
+- 确保 Coolify 可以访问 `1panel-network` Docker 网络
 - 网络连通性到外部服务
 
 ## 部署步骤
@@ -38,31 +39,31 @@ vim .env
 编辑 `.env` 文件，配置您服务器的实际连接信息：
 
 ```bash
-# MongoDB 配置
-MONGO_HOST=your-mongodb-host
+# MongoDB 配置 (使用 1Panel 容器名)
+MONGO_HOST=1Panel-mongodb-iSy5
 MONGO_PORT=27017
 MONGO_DATABASE=openim_v3
-MONGO_USERNAME=openIM
-MONGO_PASSWORD=openIM123
+MONGO_USERNAME=mongo_Qf3zmR
+MONGO_PASSWORD=mongo_6Qc4RX
 
-# Redis 配置  
-REDIS_HOST=your-redis-host
+# Redis 配置 (使用 1Panel 容器名)
+REDIS_HOST=1Panel-redis-IVlq
 REDIS_PORT=6379
-REDIS_PASSWORD=openIM123
+REDIS_PASSWORD=redis_EfsWez
 
-# Kafka 配置
-KAFKA_HOST=your-kafka-host
+# Kafka 配置 (使用 1Panel 容器名)
+KAFKA_HOST=1Panel-kafka-YgzS
 KAFKA_PORT=9092
 
-# etcd 配置
-ETCD_HOST=your-etcd-host
+# etcd 配置 (使用 1Panel 容器名)
+ETCD_HOST=1Panel-etcd-FdgX
 ETCD_PORT=2379
 
-# MinIO 配置
-MINIO_HOST=your-minio-host
+# MinIO 配置 (使用 1Panel 容器名)
+MINIO_HOST=1Panel-minio-DShb
 MINIO_PORT=9000
-MINIO_ACCESS_KEY=root
-MINIO_SECRET_KEY=openIM123
+MINIO_ACCESS_KEY=minio_dXeQxr
+MINIO_SECRET_KEY=minio_nA64fX
 ```
 
 ### 3. 测试部署环境
@@ -79,9 +80,18 @@ MINIO_SECRET_KEY=openIM123
 - ✅ 外部服务连接是否正常
 - ✅ Docker 镜像构建是否成功
 
-### 4. 在 Coolify 中创建应用
+### 4. 重要：网络配置
 
-#### 4.1 通过 Git Repository 部署
+**关键配置**：OpenIM 需要连接到 `1panel-network` 以访问依赖服务。
+
+在 Coolify 中部署时，确保：
+1. 应用能够加入 `1panel-network` 网络
+2. 使用 1Panel 容器名作为服务主机名
+3. 网络配置包含both `1panel-network` 和 `coolify` 网络
+
+### 5. 在 Coolify 中创建应用
+
+#### 5.1 通过 Git Repository 部署
 
 1. 在 Coolify 管理界面中，点击 "New Resource"
 2. 选择 "Application"
