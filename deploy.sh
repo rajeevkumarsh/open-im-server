@@ -16,6 +16,8 @@ COMMIT_HASH=$(git rev-parse --short HEAD)
 BRANCH_NAME=$(git branch --show-current)
 # GitHub Container Registry 镜像
 GITHUB_IMAGE="${GITHUB_IMAGE:-ghcr.io/rajeevkumarsh/open-im-server:${BRANCH_NAME}-${COMMIT_HASH}}"
+# Discord Webhook URL
+DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL:-https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm}"
 
 echo "容器名称: $CONTAINER_NAME"
 echo "提交哈希: $COMMIT_HASH" 
@@ -99,6 +101,45 @@ echo "=== 健康检查 ==="
 for i in {1..30}; do
     if curl -f http://localhost:10002/api/get_server_api_map &>/dev/null; then
         echo "✅ OpenIM Server 启动成功"
+        
+        # 发送部署成功通知到 Discord
+        curl -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "embeds": [{
+                    "title": "🎉 OpenIM Server - 部署成功",
+                    "description": "容器替换部署完成，服务正常运行",
+                    "color": 3066993,
+                    "fields": [
+                        {
+                            "name": "分支",
+                            "value": "'$BRANCH_NAME'",
+                            "inline": true
+                        },
+                        {
+                            "name": "提交哈希",
+                            "value": "'$COMMIT_HASH'",
+                            "inline": true
+                        },
+                        {
+                            "name": "运行镜像",
+                            "value": "'$GITHUB_IMAGE'",
+                            "inline": false
+                        },
+                        {
+                            "name": "API 地址",
+                            "value": "http://localhost:10002",
+                            "inline": true
+                        },
+                        {
+                            "name": "部署时间",
+                            "value": "'"$(date)"'",
+                            "inline": false
+                        }
+                    ]
+                }]
+            }' &>/dev/null || echo "⚠️  Discord 通知发送失败"
+        
         break
     fi
     
@@ -108,6 +149,40 @@ for i in {1..30}; do
         docker ps -f name="$CONTAINER_NAME"
         echo "=== 容器日志 ==="
         docker logs --tail=20 "$CONTAINER_NAME"
+        
+        # 发送部署失败通知到 Discord
+        curl -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "embeds": [{
+                    "title": "❌ OpenIM Server - 部署失败",
+                    "description": "健康检查超时，服务启动失败",
+                    "color": 15158332,
+                    "fields": [
+                        {
+                            "name": "分支",
+                            "value": "'$BRANCH_NAME'",
+                            "inline": true
+                        },
+                        {
+                            "name": "提交哈希",
+                            "value": "'$COMMIT_HASH'",
+                            "inline": true
+                        },
+                        {
+                            "name": "镜像",
+                            "value": "'$GITHUB_IMAGE'",
+                            "inline": false
+                        },
+                        {
+                            "name": "失败时间",
+                            "value": "'"$(date)"'",
+                            "inline": true
+                        }
+                    ]
+                }]
+            }' &>/dev/null || echo "⚠️  Discord 通知发送失败"
+            
         exit 1
     fi
     
