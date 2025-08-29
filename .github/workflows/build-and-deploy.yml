@@ -213,7 +213,8 @@ jobs:
         # 7. 健康检查
         echo "=== 健康检查 ==="
         for i in {1..30}; do
-          if curl -f http://124.156.102.70:10002/api/get_server_api_map &>/dev/null; then
+          HEALTH_RESPONSE=$(curl -X POST http://api.guguim.app/msg/get_server_time 2>/dev/null)
+          if echo "$HEALTH_RESPONSE" | grep -q "errCode"; then
             echo "✅ OpenIM Server 启动成功"
             
             # 发送部署成功通知到 Discord
