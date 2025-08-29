@@ -1,0 +1,278 @@
+name: Build and Deploy OpenIM Server
+
+on:
+  push:
+    branches: [ develop_im, main ]
+  pull_request:
+    branches: [ develop_im, main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-,format=short
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Notify Discord - Build Success
+      if: success()
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🚀 OpenIM Server - 构建成功\",
+              \"description\": \"Docker 镜像构建并推送完成\",
+              \"color\": 3066993,
+              \"fields\": [
+                {
+                  \"name\": \"分支\",
+                  \"value\": \"\`${{ github.ref_name }}\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"提交\",
+                  \"value\": \"\`${{ github.sha }}\`\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"镜像\",
+                  \"value\": \"\`ghcr.io/${{ github.repository }}:${{ github.ref_name }}-${{ github.sha }}\`\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"构建者\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
+                }
+              ]
+            }]
+          }"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop_build'
+
+    steps:
+
+    - name: Deploy via 1Panel API
+      if: github.ref == 'refs/heads/develop_build'
+      run: |
+        # 设置变量
+        PANEL_URL="http://124.156.102.70:18238"
+        API_KEY="MdRXfn1dhUkQ3vMUUqILrDKECAELkoUD"
+        TIMESTAMP=$(date +%s)
+        
+        # 生成1Panel Token: md5('1panel' + API-Key + UnixTimestamp)
+        TOKEN_STRING="1panel${API_KEY}${TIMESTAMP}"
+        PANEL_TOKEN=$(echo -n "$TOKEN_STRING" | md5sum | cut -d' ' -f1)
+        
+        CONTAINER_NAME="openim-server"
+        COMMIT_HASH="${{ github.sha }}"
+        BRANCH_NAME="${{ github.ref_name }}"
+        GITHUB_IMAGE="ghcr.io/${{ github.repository }}:${BRANCH_NAME}-${COMMIT_HASH:0:7}"
+        DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"
+        
+        echo "=== 1Panel API 部署 ==="
+        echo "面板地址: $PANEL_URL"
+        echo "容器名称: $CONTAINER_NAME"
+        echo "新镜像: $GITHUB_IMAGE"
+        echo "时间戳: $TIMESTAMP"
+        echo "Token: $PANEL_TOKEN"
+        
+        # 1. 停止现有容器
+        echo "=== 停止现有容器 ==="
+        curl -s -X POST \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"stop\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate" || echo "容器可能不存在或已停止"
+        
+        # 2. 删除现有容器
+        echo "=== 删除现有容器 ==="
+        curl -s -X POST \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"remove\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate" || echo "容器可能不存在"
+        
+        # 3. 拉取新镜像
+        echo "=== 拉取镜像 ==="
+        PULL_RESPONSE=$(curl -s -X POST \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"imageName\": \"$GITHUB_IMAGE\"
+          }" \
+          "$PANEL_URL/api/v2/containers/image/pull")
+        echo "拉取结果: $PULL_RESPONSE"
+        
+        # 等待镜像拉取完成
+        sleep 10
+        
+        # 4. 创建新容器
+        echo "=== 创建新容器 ==="
+        CREATE_RESPONSE=$(curl -s -X POST \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"name\": \"$CONTAINER_NAME\",
+            \"image\": \"$GITHUB_IMAGE\",
+            \"restartPolicy\": \"always\",
+            \"network\": \"openim-docker_openim\",
+            \"init\": true,
+            \"exposedPorts\": [
+              {\"hostPort\": \"10001\", \"containerPort\": \"10001\", \"protocol\": \"tcp\"},
+              {\"hostPort\": \"10002\", \"containerPort\": \"10002\", \"protocol\": \"tcp\"}
+            ],
+            \"volumes\": [
+              {\"sourceDir\": \"/home/ubuntu/openim-docker/config\", \"containerDir\": \"/openim/config\", \"mode\": \"ro\", \"type\": \"bind\"},
+              {\"sourceDir\": \"/home/ubuntu/openim-docker/_output/logs\", \"containerDir\": \"/openim/logs\", \"mode\": \"rw\", \"type\": \"bind\"}
+            ],
+            \"healthCheck\": {
+              \"test\": [\"CMD\", \"sh\", \"-c\", \"mage check\"],
+              \"interval\": 5,
+              \"timeout\": 60,
+              \"retries\": 10
+            },
+            \"env\": [
+              \"TZ=Asia/Shanghai\",
+              \"IMENV_MONGODB_ADDRESS=mongo:27017\",
+              \"IMENV_MONGODB_USERNAME=openIM\",
+              \"IMENV_MONGODB_PASSWORD=openIM123\",
+              \"IMENV_KAFKA_ADDRESS=kafka:9092\",
+              \"IMENV_KAFKA_USERNAME=\",
+              \"IMENV_KAFKA_PASSWORD=\",
+              \"IMENV_DISCOVERY_ETCD_ADDRESS=etcd:2379\",
+              \"IMENV_DISCOVERY_ETCD_USERNAME=\",
+              \"IMENV_DISCOVERY_ETCD_PASSWORD=\",
+              \"IMENV_REDIS_ADDRESS=redis:6379\",
+              \"IMENV_REDIS_PASSWORD=openIM123\",
+              \"IMENV_MINIO_INTERNALADDRESS=http://minio:9000\",
+              \"IMENV_MINIO_EXTERNALADDRESS=http://124.156.102.70:19000\",
+              \"IMENV_MINIO_ACCESSKEYID=root\",
+              \"IMENV_MINIO_SECRETACCESSKEY=openIM123\",
+              \"IMENV_SHARE_SECRET=openIM123\",
+              \"IMENV_LOG_ISSTDOUT=false\",
+              \"IMENV_LOG_REMAINLOGLEVEL=6\",
+              \"IMENV_OPENIM_API_PROMETHEUS_GRAFANAURL=http://124.156.102.70:13000\"
+            ]
+          }" \
+          "$PANEL_URL/api/v2/containers")
+        
+        echo "创建结果: $CREATE_RESPONSE"
+        
+        # 5. 启动容器
+        echo "=== 启动容器 ==="
+        curl -s -X POST \
+          -H "1Panel-Token: $PANEL_TOKEN" \
+          -H "1Panel-Timestamp: $TIMESTAMP" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"names\": [\"$CONTAINER_NAME\"],
+            \"operation\": \"start\"
+          }" \
+          "$PANEL_URL/api/v2/containers/operate"
+        
+        # 6. 等待容器启动
+        echo "=== 等待容器启动 ==="
+        sleep 5
+        
+        # 7. 发送部署完成通知
+        echo "=== 发送部署完成通知 ==="
+        curl -X POST "$DISCORD_WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🚀 OpenIM Server - 容器部署完成\",
+              \"description\": \"镜像已推送到服务器并启动容器，服务启动状态将单独通知\",
+              \"color\": 3066993,
+              \"fields\": [
+                {\"name\": \"分支\", \"value\": \"$BRANCH_NAME\", \"inline\": true},
+                {\"name\": \"提交哈希\", \"value\": \"${COMMIT_HASH:0:7}\", \"inline\": true},
+                {\"name\": \"镜像版本\", \"value\": \"$GITHUB_IMAGE\", \"inline\": false},
+                {\"name\": \"部署方式\", \"value\": \"1Panel API\", \"inline\": true},
+                {\"name\": \"构建时间\", \"value\": \"$(date)\", \"inline\": true}
+              ]
+            }]
+          }" || echo "⚠️ Discord 通知发送失败"
+
+    - name: Notify Discord - Build Failed
+      if: failure()
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"❌ OpenIM Server - 构建失败\",
+              \"description\": \"Docker 镜像构建过程中出现错误\",
+              \"color\": 15158332,
+              \"fields\": [
+                {
+                  \"name\": \"分支\",
+                  \"value\": \"\`${{ github.ref_name }}\`\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"提交\",
+                  \"value\": \"\`${{ github.sha }}\`\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"构建者\",
+                  \"value\": \"${{ github.actor }}\",
+                  \"inline\": true
+                }
+              ]
+            }]
+          }"
