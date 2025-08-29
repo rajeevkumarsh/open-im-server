@@ -13,9 +13,11 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted  # 使用自托管的 runner
+    if: github.ref == 'refs/heads/develop_build'
 
     steps:
     - name: Checkout repository
@@ -39,7 +41,7 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=sha,prefix={{branch}}-
+          type=sha,prefix={{branch}}-,format=short
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
@@ -88,188 +90,168 @@ jobs:
             }]
           }"
 
-    - name: Debug SSH connection info
+    - name: Deploy via Portainer API
       if: github.ref == 'refs/heads/develop_build'
       run: |
-        echo "=== SSH 连接信息调试 ==="
-        echo "HOST: ${{ secrets.HOST }}"
-        echo "USERNAME: ${{ secrets.USERNAME }}"
-        echo "PORT: ${{ secrets.PORT || 22 }}"
-        echo "DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/home/ubuntu/open-im-server' }}"
-        echo "认证方式: 密码登录"
-
-    - name: Setup SSH and deploy
-      if: github.ref == 'refs/heads/develop_build'
-      run: |
-        # 安装 sshpass
-        sudo apt-get update && sudo apt-get install -y sshpass
+        # 设置变量
+        PORTAINER_URL="http://129.226.214.22:9100"
+        PORTAINER_TOKEN="ptr_99YaZP1PKDwOKXQe69xY97A7v6vWxvW5nYknGULibdw="
+        CONTAINER_NAME="openim-server"
+        COMMIT_HASH="${{ github.sha }}"
+        BRANCH_NAME="${{ github.ref_name }}"
+        GITHUB_IMAGE="ghcr.io/${{ github.repository }}:${BRANCH_NAME}-${COMMIT_HASH:0:7}"
+        DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"
         
-        # 使用 sshpass 连接并执行部署
-        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
-          -o StrictHostKeyChecking=no \
-          -o UserKnownHostsFile=/dev/null \
-          -p ${{ secrets.PORT || 22 }} \
-          ${{ secrets.USERNAME }}@${{ secrets.HOST }} \
-          'bash -s' <<'EOF'
-          echo "=== SSH 连接成功 ==="
-          whoami
-          echo "当前时间: $(date)"
+        echo "=== Portainer API 部署 ==="
+        echo "Portainer URL: $PORTAINER_URL"
+        echo "容器名称: $CONTAINER_NAME"
+        echo "新镜像: $GITHUB_IMAGE"
+        
+        # 1. 获取环境列表
+        echo "=== 获取环境信息 ==="
+        ENVIRONMENTS=$(curl -s \
+          -H "X-API-Key: $PORTAINER_TOKEN" \
+          "$PORTAINER_URL/api/endpoints")
+        
+        ENDPOINT_ID=$(echo "$ENVIRONMENTS" | jq -r '.[0].Id')
+        echo "使用环境 ID: $ENDPOINT_ID"
+        
+        # 2. 查找现有容器
+        echo "=== 查找现有容器 ==="
+        CONTAINERS=$(curl -s \
+          -H "X-API-Key: $PORTAINER_TOKEN" \
+          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/json?all=true")
+        
+        CONTAINER_ID=$(echo "$CONTAINERS" | jq -r ".[] | select(.Names[] | contains(\"$CONTAINER_NAME\")) | .Id")
+        
+        if [ -n "$CONTAINER_ID" ]; then
+          echo "找到现有容器: $CONTAINER_ID"
           
-          # 设置变量
-          CONTAINER_NAME="openim-server"
-          COMMIT_HASH="${{ github.sha }}"
-          BRANCH_NAME="${{ github.ref_name }}"
-          GITHUB_IMAGE="ghcr.io/${{ github.repository }}:${BRANCH_NAME}-${COMMIT_HASH}"
-          DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1410921882714116227/M4NJjctluETrJk5JnWwW8U0uWCcgO_MYSCy-w8QefRI56zmMkY3Ii5C47MegO4A_1Vjm"
+          # 3. 停止并删除现有容器
+          echo "=== 停止现有容器 ==="
+          curl -s -X POST \
+            -H "X-API-Key: $PORTAINER_TOKEN" \
+            "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$CONTAINER_ID/stop"
           
-          echo "=== 部署信息 ==="
-          echo "容器名称: $CONTAINER_NAME"
-          echo "提交哈希: ${COMMIT_HASH:0:7}"
-          echo "分支名称: $BRANCH_NAME" 
-          echo "镜像地址: $GITHUB_IMAGE"
+          echo "=== 删除现有容器 ==="
+          curl -s -X DELETE \
+            -H "X-API-Key: $PORTAINER_TOKEN" \
+            "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$CONTAINER_ID"
+        else
+          echo "未找到现有容器，将创建新容器"
+        fi
+        
+        # 4. 拉取新镜像
+        echo "=== 拉取新镜像 ==="
+        PULL_URL="$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/images/create?fromImage=$(echo "$GITHUB_IMAGE" | sed 's/:/%3A/g' | sed 's|/|%2F|g')"
+        echo "拉取 URL: $PULL_URL"
+        
+        PULL_RESPONSE=$(curl -s -X POST \
+          -H "X-API-Key: $PORTAINER_TOKEN" \
+          "$PULL_URL")
+        echo "拉取响应: $PULL_RESPONSE"
+        
+        # 等待镜像拉取完成
+        sleep 10
+        
+        # 5. 创建新容器
+        echo "=== 创建新容器 ==="
+        CREATE_RESPONSE=$(curl -s -X POST \
+          -H "X-API-Key: $PORTAINER_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"Image\": \"$GITHUB_IMAGE\",
+            \"name\": \"$CONTAINER_NAME\",
+            \"HostConfig\": {
+              \"RestartPolicy\": {\"Name\": \"always\"},
+              \"NetworkMode\": \"openim-docker_openim\",
+              \"PortBindings\": {
+                \"10001/tcp\": [{\"HostPort\": \"10001\"}],
+                \"10002/tcp\": [{\"HostPort\": \"10002\"}]
+              },
+              \"Binds\": [
+                \"/home/ubuntu/openim-docker/config:/openim/config:ro\",
+                \"/home/ubuntu/openim-docker/_output/logs:/openim/logs\"
+              ]
+            },
+            \"Env\": [
+              \"TZ=Asia/Shanghai\",
+              \"MONGO_URI=mongodb://openIM:openIM123@mongo:27017/openim_v3?maxPoolSize=100\",
+              \"REDIS_ADDRESS=redis:6379\",
+              \"REDIS_PASSWORD=openIM123\",
+              \"KAFKA_ADDRESS=kafka:9092\",
+              \"MINIO_ENDPOINT=http://minio:9000\",
+              \"MINIO_ACCESS_KEY=root\",
+              \"MINIO_SECRET_KEY=openIM123\",
+              \"OPENIM_SECRET=openIM123\"
+            ]
+          }" \
+          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/create")
+        
+        NEW_CONTAINER_ID=$(echo "$CREATE_RESPONSE" | jq -r '.Id')
+        echo "新容器 ID: $NEW_CONTAINER_ID"
+        
+        # 6. 启动新容器
+        echo "=== 启动新容器 ==="
+        curl -s -X POST \
+          -H "X-API-Key: $PORTAINER_TOKEN" \
+          "$PORTAINER_URL/api/endpoints/$ENDPOINT_ID/docker/containers/$NEW_CONTAINER_ID/start"
+        
+        # 7. 等待容器启动
+        echo "=== 等待容器启动 ==="
+        sleep 15
+        
+        # 8. 健康检查
+        echo "=== 健康检查 ==="
+        for i in {1..30}; do
+          if curl -f http://129.226.214.22:10002/api/get_server_api_map &>/dev/null; then
+            echo "✅ OpenIM Server 启动成功"
+            
+            # 发送部署成功通知到 Discord
+            curl -X POST "$DISCORD_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"🎉 OpenIM Server - 部署成功 (Portainer API)\",
+                  \"description\": \"通过 Portainer API 部署完成，服务正常运行\",
+                  \"color\": 3066993,
+                  \"fields\": [
+                    {\"name\": \"分支\", \"value\": \"$BRANCH_NAME\", \"inline\": true},
+                    {\"name\": \"提交哈希\", \"value\": \"${COMMIT_HASH:0:7}\", \"inline\": true},
+                    {\"name\": \"运行镜像\", \"value\": \"$GITHUB_IMAGE\", \"inline\": false},
+                    {\"name\": \"部署方式\", \"value\": \"Portainer API\", \"inline\": true}
+                  ]
+                }]
+              }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
+            
+            exit 0
+          fi
           
-          # 1. 拉取最新镜像
-          echo "=== 拉取最新镜像 ==="
-          docker pull "$GITHUB_IMAGE"
+          if [ $i -eq 30 ]; then
+            echo "❌ 健康检查失败"
+            
+            # 发送部署失败通知到 Discord
+            curl -X POST "$DISCORD_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"❌ OpenIM Server - 部署失败 (Portainer API)\",
+                  \"description\": \"健康检查超时，服务启动失败\",
+                  \"color\": 15158332,
+                  \"fields\": [
+                    {\"name\": \"分支\", \"value\": \"$BRANCH_NAME\", \"inline\": true},
+                    {\"name\": \"提交哈希\", \"value\": \"${COMMIT_HASH:0:7}\", \"inline\": true},
+                    {\"name\": \"镜像\", \"value\": \"$GITHUB_IMAGE\", \"inline\": false}
+                  ]
+                }]
+              }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
+            
+            exit 1
+          fi
           
-          # 2. 停止并删除旧容器
-          echo "=== 停止旧容器 ==="
-          docker stop "$CONTAINER_NAME" 2>/dev/null || echo "容器未运行"
-          docker rm "$CONTAINER_NAME" 2>/dev/null || echo "容器不存在"
-          
-          # 3. 启动新容器（写死所有配置）
-          echo "=== 启动新容器 ==="
-          docker run -d \
-            --name "$CONTAINER_NAME" \
-            --restart=always \
-            --init \
-            --network openim-docker_openim \
-            -p 10001:10001 \
-            -p 10002:10002 \
-            -v /home/ubuntu/openim-docker/config:/openim/config:ro \
-            -v /home/ubuntu/openim-docker/_output/logs:/openim/logs \
-            -e TZ=Asia/Shanghai \
-            -e MONGO_URI="mongodb://openIM:openIM123@mongo:27017/openim_v3?maxPoolSize=100" \
-            -e REDIS_ADDRESS="redis:6379" \
-            -e REDIS_PASSWORD="openIM123" \
-            -e KAFKA_ADDRESS="kafka:9092" \
-            -e MINIO_ENDPOINT="http://minio:9000" \
-            -e MINIO_ACCESS_KEY="root" \
-            -e MINIO_SECRET_KEY="openIM123" \
-            -e OPENIM_SECRET="openIM123" \
-            "$GITHUB_IMAGE"
-          
-          # 5. 等待容器启动
-          echo "=== 等待容器启动 ==="
-          sleep 15
-          
-          # 6. 健康检查
-          echo "=== 健康检查 ==="
-          for i in {1..30}; do
-              if curl -f http://localhost:10002/api/get_server_api_map &>/dev/null; then
-                  echo "✅ OpenIM Server 启动成功"
-                  
-                  # 发送部署成功通知到 Discord
-                  curl -X POST "$DISCORD_WEBHOOK_URL" \
-                      -H "Content-Type: application/json" \
-                      -d "{
-                          \"embeds\": [{
-                              \"title\": \"🎉 OpenIM Server - 部署成功\",
-                              \"description\": \"容器替换部署完成，服务正常运行\",
-                              \"color\": 3066993,
-                              \"fields\": [
-                                  {
-                                      \"name\": \"分支\",
-                                      \"value\": \"$BRANCH_NAME\",
-                                      \"inline\": true
-                                  },
-                                  {
-                                      \"name\": \"提交哈希\",
-                                      \"value\": \"${COMMIT_HASH:0:7}\",
-                                      \"inline\": true
-                                  },
-                                  {
-                                      \"name\": \"运行镜像\",
-                                      \"value\": \"$GITHUB_IMAGE\",
-                                      \"inline\": false
-                                  },
-                                  {
-                                      \"name\": \"API 地址\",
-                                      \"value\": \"http://localhost:10002\",
-                                      \"inline\": true
-                                  },
-                                  {
-                                      \"name\": \"部署时间\",
-                                      \"value\": \"$(date)\",
-                                      \"inline\": false
-                                  }
-                              ]
-                          }]
-                      }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
-                  
-                  break
-              fi
-              
-              if [ $i -eq 30 ]; then
-                  echo "❌ 健康检查失败"
-                  echo "=== 容器状态 ==="
-                  docker ps -f name="$CONTAINER_NAME"
-                  echo "=== 容器日志 ==="
-                  docker logs --tail=20 "$CONTAINER_NAME"
-                  
-                  # 发送部署失败通知到 Discord
-                  curl -X POST "$DISCORD_WEBHOOK_URL" \
-                      -H "Content-Type: application/json" \
-                      -d "{
-                          \"embeds\": [{
-                              \"title\": \"❌ OpenIM Server - 部署失败\",
-                              \"description\": \"健康检查超时，服务启动失败\",
-                              \"color\": 15158332,
-                              \"fields\": [
-                                  {
-                                      \"name\": \"分支\",
-                                      \"value\": \"$BRANCH_NAME\",
-                                      \"inline\": true
-                                  },
-                                  {
-                                      \"name\": \"提交哈希\",
-                                      \"value\": \"${COMMIT_HASH:0:7}\",
-                                      \"inline\": true
-                                  },
-                                  {
-                                      \"name\": \"镜像\",
-                                      \"value\": \"$GITHUB_IMAGE\",
-                                      \"inline\": false
-                                  },
-                                  {
-                                      \"name\": \"失败时间\",
-                                      \"value\": \"$(date)\",
-                                      \"inline\": true
-                                  }
-                              ]
-                          }]
-                      }" &>/dev/null || echo "⚠️  Discord 通知发送失败"
-                      
-                  exit 1
-              fi
-              
-              echo "等待服务启动... ($i/30)"
-              sleep 2
-          done
-          
-          # 7. 显示部署结果
-          echo "=== 部署成功 ==="
-          echo "✅ OpenIM Server 容器替换完成"
-          echo "提交哈希: ${COMMIT_HASH:0:7}"
-          echo "运行镜像: $GITHUB_IMAGE"
-          echo "API 地址: http://localhost:10002"
-          
-          # 显示容器状态
-          echo "=== 容器状态 ==="
-          docker ps -f name="$CONTAINER_NAME"
-          
-          echo "🎉 部署完成！"
-        EOF
+          echo "等待服务启动... ($i/30)"
+          sleep 2
+        done
 
     - name: Notify Discord - Build Failed
       if: failure()
