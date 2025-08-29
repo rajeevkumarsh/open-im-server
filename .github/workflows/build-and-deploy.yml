@@ -161,15 +161,15 @@ jobs:
           -d "{
             \"name\": \"$CONTAINER_NAME\",
             \"image\": \"$GITHUB_IMAGE\",
-            \"restart\": \"always\",
-            \"networkMode\": \"openim-docker_openim\",
-            \"portBindings\": [
-              {\"hostPort\": \"10001\", \"containerPort\": \"10001\"},
-              {\"hostPort\": \"10002\", \"containerPort\": \"10002\"}
+            \"restartPolicy\": \"always\",
+            \"network\": \"openim-docker_openim\",
+            \"exposedPorts\": [
+              {\"hostPort\": \"10001\", \"containerPort\": \"10001\", \"protocol\": \"tcp\"},
+              {\"hostPort\": \"10002\", \"containerPort\": \"10002\", \"protocol\": \"tcp\"}
             ],
             \"volumes\": [
-              {\"host\": \"/home/ubuntu/openim-docker/config\", \"container\": \"/openim/config\", \"mode\": \"ro\"},
-              {\"host\": \"/home/ubuntu/openim-docker/_output/logs\", \"container\": \"/openim/logs\"}
+              {\"sourceDir\": \"/home/ubuntu/openim-docker/config\", \"containerDir\": \"/openim/config\", \"mode\": \"ro\", \"type\": \"bind\"},
+              {\"sourceDir\": \"/home/ubuntu/openim-docker/_output/logs\", \"containerDir\": \"/openim/logs\", \"mode\": \"rw\", \"type\": \"bind\"}
             ],
             \"env\": [
               \"TZ=Asia/Shanghai\",
